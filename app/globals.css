@@ -1,0 +1,238 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+
+    /* Scrollbar theme (tiny "lava glass" sliver) */
+    --scrollbar-size: 8px;
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: rgba(255, 255, 255, 0.22);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.34);
+  }
+
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+
+    /* Fallback for browsers that don’t support scrollbar-gutter well */
+    overflow-y: scroll;
+  }
+
+  body {
+    width: 100%;
+    overflow-x: clip;
+  }
+
+  @supports not (overflow: clip) {
+    html,
+    body {
+      overflow-x: hidden;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  /* Chromium / Safari */
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  @keyframes lava-scrollbar-shift {
+    0% {
+      background-position: 50% 0%, 0% 0%;
+    }
+    100% {
+      background-position: 50% 100%, 100% 0%;
+    }
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 2px solid rgba(0, 0, 0, 0.38);
+    background:
+      radial-gradient(10px 18px at 60% 30%, rgba(255, 255, 255, 0.55), transparent 60%),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.30),
+        rgba(255, 255, 255, 0.14) 45%,
+        rgba(255, 255, 255, 0.26)
+      );
+    box-shadow:
+      0 0 14px rgba(255, 255, 255, 0.12),
+      inset 0 0 18px rgba(255, 255, 255, 0.14);
+    animation: lava-scrollbar-shift 7.5s ease-in-out infinite alternate;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background:
+      radial-gradient(12px 22px at 60% 30%, rgba(255, 255, 255, 0.65), transparent 62%),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.40),
+        rgba(255, 255, 255, 0.18) 45%,
+        rgba(255, 255, 255, 0.34)
+      );
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *::-webkit-scrollbar-thumb {
+      animation: none;
+    }
+  }
+}
+
+@layer components {
+  /* MDX reading styles: minimal, premium rhythm */
+  .mdx {
+    @apply text-[15px] sm:text-[16px] leading-7 text-zinc-200;
+  }
+
+  .mdx > :first-child {
+    @apply mt-0;
+  }
+
+  .mdx h1 {
+    /* If you ever use # in MDX, keep it reasonable */
+    @apply mt-10 text-2xl font-semibold tracking-tight text-zinc-50;
+  }
+
+  .mdx h2 {
+    @apply mt-10 text-2xl font-semibold tracking-tight text-zinc-50;
+  }
+
+  .mdx h3 {
+    @apply mt-8 text-xl font-semibold tracking-tight text-zinc-50;
+  }
+
+  .mdx p {
+    @apply mt-4 text-zinc-300;
+  }
+
+  .mdx ul {
+    @apply mt-4 ml-6 list-disc space-y-2 text-zinc-300;
+  }
+
+  .mdx ol {
+    @apply mt-4 ml-6 list-decimal space-y-2 text-zinc-300;
+  }
+
+  .mdx li {
+    @apply pl-1;
+  }
+
+  .mdx a {
+    @apply text-zinc-100 underline underline-offset-4 decoration-zinc-600 hover:decoration-zinc-300;
+  }
+
+  .mdx blockquote {
+    @apply mt-6 border-l-2 border-zinc-700 pl-4 text-zinc-300;
+  }
+
+  .mdx hr {
+    @apply my-10 border-zinc-800;
+  }
+
+  .mdx :not(pre) > code {
+    @apply rounded bg-zinc-900 px-1 py-0.5 text-[0.95em] text-zinc-200;
+  }
+
+  .mdx pre {
+    @apply mt-6 overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm leading-6 text-zinc-200;
+  }
+
+  .mdx table {
+    @apply mt-6 w-full text-sm;
+  }
+
+  .mdx thead {
+    @apply text-zinc-200;
+  }
+
+  .mdx th {
+    @apply border-b border-zinc-800 py-2 text-left font-medium;
+  }
+
+  .mdx td {
+    @apply border-b border-zinc-900 py-2 text-zinc-300;
+  }
+}
+
+@layer components {
+  /* rehype-pretty-code output plays nicer with our pre styling */
+  .mdx pre code {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+}
+
+/* RGB glow animation (outside Tailwind layers so keyframes are guaranteed to register) */
+.rgb-hue {
+  animation: rgbHue 45s linear infinite;
+  will-change: filter;
+  filter: hue-rotate(0deg) saturate(1.25);
+  -webkit-filter: hue-rotate(0deg) saturate(1.25);
+}
+
+@keyframes rgbHue {
+  to {
+    filter: hue-rotate(360deg) saturate(1.25);
+    -webkit-filter: hue-rotate(360deg) saturate(1.25);
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .rgb-hue {
+    animation: none;
+  }
+}
+
+/* This is the ONLY part that transitions */
+.vt-main {
+  view-transition-name: main;
+}
+
+/* Kill the default root crossfade so the backdrop doesn’t fade/reset */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+}
+
+/* Make sure the old root snapshot doesn't sit on top */
+::view-transition-old(root) {
+  opacity: 0 !important;
+}
+
+/* Your actual page fade */
+::view-transition-old(main) {
+  animation: fade-out 300ms ease-in-out both;
+}
+::view-transition-new(main) {
+  animation: fade-in 300ms ease-in-out both;
+}
+
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes fade-in { from { opacity: 0; } }

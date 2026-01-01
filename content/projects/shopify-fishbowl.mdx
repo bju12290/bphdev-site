@@ -1,0 +1,84 @@
+---
+title: "Shopify ↔ Fishbowl Fulfillment Bridge"
+slug: "shopify-fishbowl-fulfillment-bridge"
+summary: "A small Node.js webhook bridge that verifies Shopify fulfillment events, de-dupes deliveries with SQLite, and mirrors fulfilled orders into Fishbowl Advanced via CSV Import."
+featured: false
+visibility: "public" # public | unlisted | private
+status: "shipped"    # shipped | maintained | archived | wip
+date: "2025-12-30"
+tags: ["integration", "webhooks", "idempotency", "ecommerce", "fulfillment", "inventory", "observability"]
+stack: ["Node.js", "SQLite", "Shopify Admin API (GraphQL)", "Fishbowl Advanced", "GitHub Actions", "SMTP (optional)"]
+role: ["Solo"]
+highlights:
+  - "Verified Shopify webhooks (HMAC) + idempotent processing (at-least-once delivery safe)"
+  - "Mirrors fulfilled orders into Fishbowl via configurable CSV Import mapping"
+  - "Fully runnable local demo with Mock Shopify + Mock Fishbowl + failure scenarios"
+  - "Optional email alerts when Fishbowl import fails (without mutating Shopify)"
+links:
+  demo: "https://youtu.be/P-oLhBJOCX8"
+  repo: "https://github.com/bju12290/shopify-fishbowl-fulfillment-bridge"
+hero:
+  image: "/images/projects/shopify-fishbowl/output.png"
+  alt: "Console output of `npm run demo` showing success + dedupe + failure path"
+---
+
+## What it is
+A small Node.js service that listens for Shopify fulfillment webhooks and mirrors “fulfilled” orders into Fishbowl Advanced.
+It’s designed to be reliable under real webhook conditions (duplicates, retries, partial failures) and easy to validate locally.
+
+## Outcomes
+- Built a **fully runnable local demo** (no real Shopify store or Fishbowl instance required) to prove the end-to-end flow.
+- Implemented **idempotent processing** using `X-Shopify-Event-Id` persisted in SQLite, preventing double-imports on retry storms.
+- Added a “trust but verify” fulfillment gate: webhook receipt isn’t enough — the bridge confirms the order is actually **FULFILLED** before triggering Fishbowl.
+
+## Problem
+Shopify webhooks are **at-least-once**: duplicates are normal, not exceptional.
+Without verification + idempotency, a fulfillment webhook can easily become *two* Fishbowl imports… and now you’re reconciling chaos in an inventory system that does not care about your feelings.
+
+Also: it’s annoying to develop an integration when you don’t always have a real Shopify/Fishbowl environment available.
+
+## Constraints
+- Webhooks can be duplicated and reordered; the service must be safe to run continuously.
+- Fishbowl failures should be visible (logs/alerts), but the bridge should **not** “half apply” anything back to Shopify.
+- Keep scope intentionally tight: no job queue framework, no dashboard, no multi-tenant SaaS machinery.
+
+## Solution
+1) Receive Shopify fulfillment webhook: `POST /webhooks/shopify`  
+2) Verify authenticity via Shopify HMAC header (`X-Shopify-Hmac-Sha256`)  
+3) De-dupe using `X-Shopify-Event-Id` stored in SQLite (persisted across restarts)  
+4) Confirm the order is actually **FULFILLED** (Shopify GraphQL in real mode; mocked in demo mode)  
+5) If fulfilled, trigger Fishbowl Advanced via Import endpoint (`POST /api/import/:name`) using generated CSV payload  
+6) If Fishbowl fails, return HTTP 200 (ack the webhook), log the error, and optionally email an alert — **no Shopify mutation**
+
+![Mock Fishbowl request capture (`GET /__mock/requests`).](/images/projects/shopify-fishbowl/curl.png)
+
+## Architecture
+
+- **Bridge service**: HTTP server exposing `/health` and `/webhooks/shopify`
+- **Idempotency store**: SQLite database of processed event IDs (`./data/idempotency.sqlite` by default)
+- **Shopify integration**:
+  - real mode: GraphQL fulfillment verification
+  - mock mode: returns “FULFILLED” for demo orders
+- **Fishbowl integration**:
+  - login → import → logout sequence
+  - CSV headers + row template configured via env vars
+- **Notification layer (optional)**: SMTP email alerting on import failures
+
+Data flow (conceptually):
+Shopify → Bridge → (SQLite dedupe) → (GraphQL verify) → Fishbowl Import → (optional alert)
+
+![Shopify Fishbowl fulfillment bridge Mermaid diagram](https://raw.githubusercontent.com/bju12290/shopify-fishbowl-fulfillment-bridge/main/docs/diagram.png)
+
+## Notable technical details
+- **HMAC verification** for webhook authenticity (`X-Shopify-Hmac-Sha256`)
+- **True idempotency** using Shopify’s delivery event ID (`X-Shopify-Event-Id`) persisted in SQLite
+- **Safety-first side effects**: Fishbowl errors don’t cause any attempt to “fix” Shopify; they’re surfaced via logs/alerts
+- **Configurable CSV mapping**: headers + row template are env-driven with placeholder substitution:
+  - `{{orderNumber}}`, `{{trackingNumber}}`, `{{carrier}}`, `{{shipDate}}`
+- **Local integration harness**:
+  - Mock Fishbowl server captures login/import/logout calls
+  - Demo runner executes 3 scenarios: success, duplicate webhook, forced Fishbowl failure
+
+## Links
+- Demo: https://youtu.be/P-oLhBJOCX8
+- Repo: https://github.com/bju12290/shopify-fishbowl-fulfillment-bridge

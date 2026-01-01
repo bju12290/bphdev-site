@@ -1,0 +1,88 @@
+---
+title: "A tiny webhook bridge pattern: verify, dedupe, then act"
+slug: "tiny-webhook-bridge-pattern"
+summary: "A practical checklist for turning noisy at-least-once webhooks into safe, idempotent integrations (Shopify → Fishbowl example)."
+visibility: "public"   # public | unlisted | private
+pinned: false
+topics: ["webhooks", "idempotency", "shopify", "fishbowl", "nodejs", "integration"]
+date: "2025-12-30"
+evergreen: true
+hero:
+  image: "/images/projects/shopify-fishbowl/output.png"
+  alt: "Console output of demo run of shopify-fishbowl fulfillment bridge showing success + dedupe + failure path"
+---
+
+Related project: **[Shopify ↔ Fishbowl Fulfillment Bridge](/projects/shopify-fishbowl-fulfillment-bridge)**  
+Repo: **[bju12290/shopify-fishbowl-fulfillment-bridge](https://github.com/bju12290/shopify-fishbowl-fulfillment-bridge)**
+
+## The point
+Webhooks are *at-least-once*. That means duplicates are not a bug — they’re an expected feature of reality.
+So if a webhook triggers something expensive (inventory, fulfillment, accounting), you need a tiny safety harness:
+
+**Verify → Dedupe → Confirm state → Act → Alert (don’t thrash).**
+
+That pattern is the difference between “works in a demo” and “doesn’t randomly create duplicate imports at 3AM.”
+
+## The practical bit
+Here’s the minimal checklist I follow for webhook → external-system bridges:
+
+### 1) Verify the sender (authenticity)
+Treat inbound webhooks like stranger-danger mail.
+For Shopify, that’s HMAC verification with the webhook secret.
+
+If you skip this, you’re basically offering a public endpoint that can be used to trigger your downstream system.
+
+### 2) Dedupe by an event ID (idempotency)
+Most webhook providers include a delivery/event ID.
+Store it somewhere persistent (SQLite is plenty for a “small bridge”), then:
+
+- if you’ve seen this event ID before: **acknowledge and skip**
+- if you haven’t: record it, then proceed
+
+This is the core move that makes at-least-once delivery safe.
+
+### 3) Confirm the world is actually in the expected state
+A webhook is a notification, not the source of truth.
+Before you kick off side effects, double-check that the thing is really true.
+
+In this project, the webhook says “fulfilled,” but the bridge still confirms the order is **FULFILLED**
+(via Shopify GraphQL in real mode; mocked in demo mode).
+
+### 4) Do the side effect (keep it narrow)
+Then do *one job*:
+generate CSV from a template, trigger Fishbowl Advanced Import, and get out.
+
+A bridge is not a platform. It’s a cable.
+
+### 5) Fail loudly, but don’t amplify chaos
+If the downstream system fails:
+- log the error
+- optionally notify (email/alerts)
+- and be careful about returning non-2xx to the webhook sender (retries can become a storm)
+
+The goal is: **surface failures without creating duplicates**.
+
+## Examples
+A mental model that helps:
+
+**Incoming webhooks are “noisy.”**  
+Your bridge’s job is to output **one clean action per real-world event**.
+
+Data flow:
+Shopify webhook
+→ verify signature
+→ dedupe event ID (SQLite)
+→ confirm fulfillment state
+→ generate CSV
+→ Fishbowl Import
+→ alert on failure
+
+If you want to see this pattern exercised end-to-end, that’s exactly what the
+**[Shopify ↔ Fishbowl Fulfillment Bridge](/projects/shopify-fishbowl-fulfillment-bridge)** demo does:
+success path, duplicate webhook path, and forced failure path.
+
+## Closing
+This isn’t glamorous engineering. It’s the kind that prevents “why are there two imports for order 1001?” conversations.
+
+Whenever a webhook triggers money-moving or inventory-moving actions, this tiny pattern pays rent:
+**verify → dedupe → confirm → act → alert.**

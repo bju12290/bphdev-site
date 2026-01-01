@@ -1,30 +1,105 @@
 ﻿---
 title: "AP Buddy"
 slug: "ap-buddy"
-summary: "Automation-first ops tooling for e-commerce workflows."
+summary: "A desktop operations assistant that automates Amazon→eBay dropshipping workflows and enhances AutoPilot with reliable, configurable modules."
 featured: true
-visibility: "public"
-status: "maintained"
-date: "2025-12-26"
-tags: ["automation", "electron", "integrations"]
-stack: ["Node.js", "Electron", "SQLite", "Cloudflare Workers"]
+visibility: "public" # public | unlisted | private
+status: "maintained" # shipped | maintained | archived | wip
+date: "2025-12-27"
+tags: ["automation", "electron", "nodejs", "puppeteer", "cloudflare", "api-integration", "billing", "observability", "ecommerce"]
+stack: ["Node.js", "Electron", "Puppeteer", "Cloudflare Workers/KV", "Paddle", "Discord API", "eBay API", "Google Sheets API", "Google Drive API"]
 role: ["Solo"]
 highlights:
-  - "Idempotent event ingestion + retries"
-  - "Local worker + UI architecture"
+  - "Production desktop app with paying subscribers and an automated free-trial flow via Discord commands"
+  - "End-to-end automation modules for sourcing, listing, order ops, invoices, tracking, and reporting"
+  - "Loss-prevention checks across recent listings (up to ~2000) and orders with user-configurable handling"
+  - "License management and Discord role sync backed by Cloudflare KV, with billing handled via Paddle"
+  - "Google Drive backup/import for invoices and config, plus Google Sheets sync for sales metrics"
+  - "Operational tooling: rich logs, dashboards, and automated sale notifications with deep sale context"
 links:
-  demo: ""
+  demo: "https://apbuddy.org/"
   repo: ""
 hero:
-  image: ""
-  alt: ""
+  image: "/images/projects/ap-buddy/dashboard.png"
+  alt: "AP Buddy dashboard UI"
 ---
 
 ## What it is
-AP Buddy is a desktop automation tool that streamlines repetitive e-commerce operations and integrations.
+AP Buddy is a modular Electron desktop app that automates the repetitive, failure-prone parts of Amazon→eBay dropshipping operations.
+It integrates browser automation (Puppeteer) and platform APIs (eBay + Google) to handle daily workflows like invoices, tracking, listing, monitoring, and reporting — with guardrails aimed at preventing expensive mistakes.
 
 ## Outcomes
-- (Add real outcomes once you decide what you can safely claim publicly.)
+- In production and actively maintained with paying subscribers
+- Automated free trial system: Discord command onboarding + email capture + license provisioning
+- Reduced manual ops overhead by consolidating routine workflows into one configurable tool
+- (Optional: add real numbers) Hours saved/week, orders processed/week, listings monitored/day, etc.
+
+## Problem
+Dropshipping operations are a death-by-a-thousand-paper-cuts situation:
+manually pulling invoices, uploading tracking, auditing listings for profit killers, reacting to sales, and babysitting inventory/price competitiveness.
+Most “automation” breaks the moment a UI changes, an API rate-limits you, or a workflow isn’t perfectly linear — and those failures can directly cost money.
+
+## Constraints
+- External dependencies: eBay API limits, Google API quotas, flaky network conditions, changing web UIs
+- Automation reliability: browser sessions crash, pages change, and edge cases are the norm
+- Safety: incorrect actions can cause monetary loss (wrong price, wrong stock state, bad tracking, etc.)
+- Licensing/productization: access control, subscription state, and user onboarding had to be fully automated
+
+## Solution
+I built AP Buddy as a modular operations suite where each workflow is a dedicated module with clear inputs/outputs and configurable behavior.
+Where possible, it prefers stable APIs; where not possible, it uses hardened Puppeteer automation with logging and recovery.
+Operational data is surfaced inside the app (dashboard + logs), and key artifacts (invoices + configuration) can be backed up and restored via Google Drive.
+
+![Configuration panels showing service connections, background tasks, and listing guardrails.](/images/projects/ap-buddy/config.png)
 
 ## Architecture
-- (We'll add a clean diagram + explanation here.)
+- **Electron App (UI + Orchestration)**
+  - Dashboard + run controls
+  - Config management with validation
+  - Module runner / scheduler
+
+- **Automation Layer (Node + Puppeteer + APIs)**
+  - Puppeteer flows for invoice retrieval and other UI-dependent tasks
+  - eBay API integrations for orders, listings, tracking uploads, sales data
+  - Google APIs for Sheets metrics + Drive backup/import
+
+- **Licensing + Access Control**
+  - Paddle handles billing lifecycle
+  - Cloudflare Worker + KV stores license state
+  - Discord role sync grants/removes access based on active subscription/trial
+
+- **Operational Tooling**
+  - Rich logs intended for debugging real user issues
+  - Sale notifications with in-depth sale context
+  - Scheduled checks for listings/orders to catch common “profit leak” problems
+
+### Data flow (high-level)
+1. User configures modules in the Electron UI
+2. Scheduler triggers module runs (or user runs manually)
+3. Modules read config → perform API actions / Puppeteer flows
+4. Results are logged + surfaced in the dashboard
+5. Invoices/config are backed up to Drive; metrics sync to Sheets
+6. Licensing state is periodically validated against Cloudflare KV (kept in sync via Paddle events + Discord roles)
+
+### Reliability notes
+- Designed around “assume external systems will fail sometimes”
+- Guardrails on automated actions to reduce costly mistakes
+- Logging structured to make user bug reports actionable
+
+![Run reports and error diagnostics posted to Discord: successful sessions with summaries plus a structured failure example.](/images/projects/ap-buddy/output.png)
+
+## Notable technical details
+- Multi-service integration: eBay API + Google Drive/Sheets + Discord + Paddle + Cloudflare KV
+- Automated invoice retrieval and archival to Google Drive
+- Automated tracking uploads to eBay orders
+- Automated product sourcing and listing workflows
+- Listing audit pipeline (up to ~2000 recent listings) to detect common monetary-loss issues
+- Order auditing + configurable error handling
+- Sales metrics ingestion + Google Sheets reporting
+- Listing cleanup/repricing to free insertion slots and stay competitive
+- Inventory and “winning product” monitoring to keep items in-stock and correctly priced
+- App-native dashboard and logs for operational visibility
+
+## Links
+- Demo: https://apbuddy.org/
+- Docs: https://ap-buddy.gitbook.io/

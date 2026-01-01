@@ -1,0 +1,40 @@
+{
+  "name": "portfolio-site",
+  "version": "1.0.0",
+  "description": "This repo currently contains the content model + templates for: - Projects (case studies) - Writing (evergreen notes)",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bju12290/bphdev-site.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/bju12290/bphdev-site/issues"
+  },
+  "homepage": "https://github.com/bju12290/bphdev-site#readme",
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "next": "^16.1.1",
+    "next-mdx-remote": "^5.0.0",
+    "next-view-transitions": "^0.3.5",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "rehype-pretty-code": "^0.14.1",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^3.20.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18"
+  }
+}
