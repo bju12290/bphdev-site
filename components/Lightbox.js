@@ -30,7 +30,7 @@ export default function Lightbox({
         <button
             type="button"
             onClick={() => setOpen(false)}
-            className="absolute -top-3 -right-3 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1 text-sm text-zinc-200 shadow-lg hover:bg-zinc-900"
+            className="cursor-pointer absolute -top-3 -right-3 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1 text-sm text-zinc-200 shadow-lg hover:bg-zinc-900"
         >
             Close
         </button>

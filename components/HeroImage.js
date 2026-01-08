@@ -3,7 +3,6 @@ import Lightbox from "./Lightbox";
 
 function normalizeAspectRatio(ratio) {
   if (!ratio) return "16 / 9";
-  // Accept "16/9" or "16 / 9".
   if (typeof ratio === "string" && ratio.includes("/") && !ratio.includes(" / ")) {
     const [a, b] = ratio.split("/").map((s) => s.trim());
     if (a && b) return `${a} / ${b}`;
@@ -11,11 +10,6 @@ function normalizeAspectRatio(ratio) {
   return ratio;
 }
 
-/**
- * HeroImage
- * - Keeps a consistent layout size via a fixed aspect-ratio container.
- * - Uses next/image fill + object-cover, with optional focal point.
- */
 export default function HeroImage({ hero, title }) {
   if (!hero?.image) return null;
 
@@ -24,19 +18,26 @@ export default function HeroImage({ hero, title }) {
   const objectPosition = hero.position || "50% 50%";
 
   return (
-    <figure className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/30">
+    <figure
+      className={[
+        // Scale the *frame* so it “expands” instead of zooming/cropping inside a clipped box
+        "overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/30",
+        "transition-transform duration-200 ease-out will-change-transform",
+        "hover:scale-[1.01] hover:border-zinc-700",
+      ].join(" ")}
+    >
       <div className="relative w-full" style={{ aspectRatio }}>
-        <Lightbox src={hero.image} alt={hero.alt} className="absolute inset-0 h-full">
+        <Lightbox src={hero.image} alt={alt} className="absolute inset-0 h-full">
           <Image
             src={hero.image}
-            alt={hero.alt}
+            alt={alt}
             fill
             priority
-            className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.01]"
+            className="object-cover"
+            style={{ objectPosition }}
           />
         </Lightbox>
 
-        {/* Subtle glassy edge + contrast lift for busy screenshots */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20" />
       </div>
 

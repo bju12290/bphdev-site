@@ -2,6 +2,22 @@ import { Link } from "next-view-transitions"
 import { getPosts } from "../../lib/content";
 import Badge from "../../components/Badge";
 
+export const metadata = {
+  title: "Writing",
+  description: "Evergreen notes. Updated occasionally.",
+  alternates: { canonical: "/writing" },
+  openGraph: {
+    url: "/writing",
+    title: "Writing",
+    description: "Evergreen notes. Updated occasionally.",
+  },
+  twitter: {
+    title: "Writing",
+    description: "Evergreen notes. Updated occasionally.",
+  },
+};
+
+
 export default function WritingIndex() {
   const posts = getPosts();
 
@@ -11,6 +27,13 @@ export default function WritingIndex() {
         <h1 className="text-3xl font-semibold">Writing</h1>
         <p className="text-zinc-400">Evergreen notes. Updated occasionally.</p>
       </div>
+      
+      <a
+          href="/rss.xml"
+          className="text-xs text-zinc-400 hover:text-zinc-200 underline underline-offset-4 decoration-zinc-700 hover:decoration-zinc-300"
+        >
+          RSS
+      </a>
 
       <div className="h-px bg-zinc-800/60" />
 

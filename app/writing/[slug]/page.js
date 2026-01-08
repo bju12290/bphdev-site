@@ -7,6 +7,49 @@ import rehypePrettyCode from "rehype-pretty-code";
 import Badge from "../../../components/Badge";
 import HeroImage from "../../../components/HeroImage";
 
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+
+  const post = getPostBySlug(slug);
+  if (!post) return {};
+
+  const title = post.title || post.slug || slug;
+  const description = post.summary || "Writing by Brian Hartnett.";
+  const canonical = `/writing/${post.slug || slug}`;
+
+  const visibility = post.visibility || "public";
+  const shouldIndex = visibility === "public";
+
+  const heroImage = (post.hero?.image || "").trim();
+  const ogImages = heroImage
+    ? [{ url: heroImage, alt: post.hero?.alt || title }]
+    : [{ url: "/og.png", width: 1200, height: 630, alt: "Brian Hartnett portfolio" }];
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    robots: shouldIndex ? undefined : { index: false, follow: false },
+
+    openGraph: {
+      type: "article",
+      url: canonical,
+      title,
+      description,
+      images: ogImages,
+      publishedTime: post.date || undefined,
+      tags: post.topics || undefined, // posts use "topics" not "tags"
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [heroImage || "/og.png"],
+    },
+  };
+}
+
 export async function generateStaticParams() {
   return getPosts().map((p) => ({ slug: p.slug }));
 }

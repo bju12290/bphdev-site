@@ -2,6 +2,21 @@ import { Link } from "next-view-transitions"
 import { getProjects } from "../../lib/content";
 import Badge from "../../components/Badge";
 
+export const metadata = {
+  title: "Work",
+  description: "Flagship case studies + smaller builds.",
+  alternates: { canonical: "/projects" },
+  openGraph: {
+    url: "/projects",
+    title: "Work",
+    description: "Flagship case studies + smaller builds.",
+  },
+  twitter: {
+    title: "Work",
+    description: "Flagship case studies + smaller builds.",
+  },
+};
+
 export default function ProjectsIndex() {
   const projects = getProjects();
 

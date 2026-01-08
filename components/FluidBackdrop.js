@@ -7,6 +7,18 @@ function prefersReducedMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
 
+function hasHardwareWebGL() {
+  try {
+    const c = document.createElement("canvas");
+    return !!(
+      c.getContext("webgl2", { failIfMajorPerformanceCaveat: true }) ||
+      c.getContext("webgl", { failIfMajorPerformanceCaveat: true })
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } = {}) {
   const svgRef = useRef(null);
   const circleEls = useRef([]);
@@ -52,6 +64,56 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       };
     });
 
+    const renderFrame = (ms, scrollY = 0) => {
+    const t = (ms / 1000) * TIME_SCALE;
+
+    const progress = Math.min(scrollY / 900, 1);
+    const intensity = 1 - progress * 0.85;
+
+    // If we're freezing, we want it a bit more visible than your animated "calm" state
+    svg.style.opacity = String(0.16);
+
+    const motionFactor =
+      HERO_MOTION_BOOST + (1 - HERO_MOTION_BOOST) * (1 - intensity);
+
+    for (let i = 0; i < circles.length; i++) {
+      const s = seeds[i];
+
+      const x =
+        W *
+        (s.x0 +
+          (s.sx * motionFactor) * Math.sin(t * s.sp + s.px) +
+          (0.015 * motionFactor) * Math.sin(t * 0.6 + s.px * 0.3));
+
+      const y =
+        H *
+        (s.y0 +
+          (s.sy * intensity * motionFactor) *
+            Math.cos(t * (s.sp * 0.9) + s.py) +
+          0.10 * progress);
+
+      const r =
+        s.r0 *
+        (0.85 + 0.15 * Math.sin(t * (s.sp * 1.1) + s.py)) *
+        (0.65 + 0.35 * intensity);
+
+      circles[i].setAttribute("cx", x.toFixed(2));
+      circles[i].setAttribute("cy", y.toFixed(2));
+      circles[i].setAttribute("r", r.toFixed(2));
+    }
+  };
+
+    // Always render ONE frame so "frozen" mode still shows goo
+    renderFrame(0, window.scrollY || 0);
+
+    // Decide whether to animate
+    const animate = hasHardwareWebGL();
+
+    if (!animate) {
+      // Freeze: no rAF, no scroll listener. Background stays present and static.
+      return;
+    }
+
     let scrollY = window.scrollY || 0;
     const onScroll = () => {
       scrollY = window.scrollY || 0;
@@ -60,47 +122,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
 
     let raf = 0;
     const tick = (ms) => {
-      // Slow down time everywhere
-      const t = (ms / 1000) * TIME_SCALE;
-
-      // Hero moment near top, calmer as you scroll down.
-      const progress = Math.min(scrollY / 900, 1);
-      const intensity = 1 - progress * 0.85; // 1 -> ~0.15
-
-      // overall opacity also calms down
-      svg.style.opacity = String(0.22 * intensity);
-
-      // Motion amplitude factor: near top it used to be 1.0; now we cap it a bit
-      const motionFactor = HERO_MOTION_BOOST + (1 - HERO_MOTION_BOOST) * (1 - intensity);
-      // Explanation: at top (intensity ~1) => motionFactor ~ HERO_MOTION_BOOST (smaller)
-      // deeper (intensity smaller) => motionFactor trends upward slightly, but overall is still calmer.
-
-      for (let i = 0; i < circles.length; i++) {
-        const s = seeds[i];
-
-        // soft drifting
-        const x =
-          W *
-          (s.x0 +
-            (s.sx * motionFactor) * Math.sin(t * s.sp + s.px) +
-            (0.015 * motionFactor) * Math.sin(t * 0.6 + s.px * 0.3));
-
-        const y =
-          H *
-          (s.y0 +
-            (s.sy * intensity * motionFactor) * Math.cos(t * (s.sp * 0.9) + s.py) +
-            0.10 * progress);
-
-        const r =
-          s.r0 *
-          (0.85 + 0.15 * Math.sin(t * (s.sp * 1.1) + s.py)) *
-          (0.65 + 0.35 * intensity);
-
-        circles[i].setAttribute("cx", x.toFixed(2));
-        circles[i].setAttribute("cy", y.toFixed(2));
-        circles[i].setAttribute("r", r.toFixed(2));
-      }
-
+      renderFrame(ms, scrollY);
       raf = requestAnimationFrame(tick);
     };
 

@@ -2,6 +2,17 @@ import { Link } from "next-view-transitions"
 import Badge from "../components/Badge";
 import { getProjects, getPosts } from "../lib/content";
 
+const CONTACT = {
+  email: "hello@bphdev.com",         // <-- replace this
+  github: "https://github.com/bju12290",
+  linkedin: "https://www.linkedin.com/in/brian-hartnett-jr/", // optional
+};
+
+export const metadata = {
+  alternates: { canonical: "/" },
+  openGraph: { url: "/" },
+};
+
 function ButtonLink({ href, children, variant = "primary" }) {
   const base =
     "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm transition";
@@ -248,6 +259,88 @@ export default function HomePage() {
             </p>
           </div>
         </div>
+
+        <div className="h-px bg-gradient-to-r from-transparent via-zinc-800/70 to-transparent" />
+
+        <section id="contact" className="scroll-mt-24 space-y-6 pt-6">
+          <div className="flex items-center gap-3">
+            <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200">
+              Contact
+            </Badge>
+            <p className="text-xs tracking-widest uppercase text-zinc-400">
+              Brian Hartnett • get in touch
+            </p>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            <div className="space-y-4">
+              <h2 className="text-3xl sm:text-5xl font-semibold leading-[1.06] tracking-tight [text-shadow:0_18px_55px_rgba(0,0,0,0.6)]">
+                Let’s build something
+                <span className="text-zinc-400"> reliable.</span>
+              </h2>
+
+              <p className="text-zinc-400 leading-7 max-w-xl [text-shadow:0_12px_35px_rgba(0,0,0,0.55)]">
+                Email is the fastest path. If you include context + constraints (stack,
+                timeline, what “done” looks like), I can respond with something useful
+                instead of “tell me more” ping-pong.
+              </p>
+
+              <div className="flex flex-wrap gap-3 pt-1">
+                <a
+                  href={`mailto:${CONTACT.email}`}
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm transition border border-zinc-800 bg-zinc-950/55 text-zinc-200 hover:border-zinc-700"
+                >
+                  Email me
+                </a>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/45 p-7 sm:p-8">
+              <div className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(900px_circle_at_30%_20%,rgba(255,255,255,0.08),transparent_60%)]" />
+              <div className="pointer-events-none absolute inset-0 opacity-60 [background:radial-gradient(700px_circle_at_75%_60%,rgba(255,255,255,0.05),transparent_62%)]" />
+
+              <div className="relative space-y-4">
+                <div className="text-sm text-zinc-200 font-medium">Direct</div>
+
+                <a
+                  href={`mailto:${CONTACT.email}`}
+                  className="block text-lg sm:text-xl font-medium text-zinc-100 underline underline-offset-4 decoration-zinc-700 hover:decoration-zinc-300"
+                >
+                  {CONTACT.email}
+                </a>
+
+                <div className="space-y-2 text-sm text-zinc-400 leading-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <span>GitHub</span>
+                    <a
+                      href={CONTACT.github}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-zinc-200 hover:text-zinc-100"
+                    >
+                      bju12290 →
+                    </a>
+                  </div>
+
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span>LinkedIn</span>
+                    <a
+                      href={CONTACT.linkedin}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-zinc-200 hover:text-zinc-100"
+                    >Open →</a>
+                  </div>
+                </div>
+
+                <p className="pt-2 text-xs text-zinc-500">
+                  No forms. No spam. Just email.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
   );

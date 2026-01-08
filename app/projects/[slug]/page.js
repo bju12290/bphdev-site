@@ -7,6 +7,53 @@ import rehypePrettyCode from "rehype-pretty-code";
 import Badge from "../../../components/Badge";
 import HeroImage from "../../../components/HeroImage";
 
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+
+  const project = getProjectBySlug(slug);
+  if (!project) return {};
+
+  const title = project.title || project.slug || slug;
+  const description = project.summary || "Project case study by Brian Hartnett.";
+  const canonical = `/projects/${project.slug || slug}`;
+
+  const visibility = project.visibility || "public";
+  const shouldIndex = visibility === "public";
+
+  const heroImage = (project.hero?.image || "").trim();
+  const ogImages = heroImage
+    ? [{ url: heroImage, alt: project.hero?.alt || title }]
+    : [{ url: "/og.png", width: 1200, height: 630, alt: "Brian Hartnett portfolio" }];
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+
+    // public = index, anything else = noindex
+    robots: shouldIndex ? undefined : { index: false, follow: false },
+
+    openGraph: {
+      type: "article",
+      url: canonical,
+      title,
+      description,
+      images: ogImages,
+
+      // Optional nice-to-have (your content supports it)
+      publishedTime: project.date || undefined,
+      tags: project.tags || undefined,
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [heroImage || "/og.png"],
+    },
+  };
+}
+
 export async function generateStaticParams() {
   return getProjects().map((p) => ({ slug: p.slug }));
 }

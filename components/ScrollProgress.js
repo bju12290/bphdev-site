@@ -10,18 +10,30 @@ export default function ScrollProgress() {
     if (!el) return;
 
     let raf = 0;
-    const tick = () => {
+
+    const update = () => {
+      raf = 0;
       const doc = document.documentElement;
       const scrollTop = doc.scrollTop || document.body.scrollTop || 0;
       const scrollHeight = doc.scrollHeight - window.innerHeight;
       const p = scrollHeight > 0 ? Math.min(scrollTop / scrollHeight, 1) : 0;
-
       el.style.transform = `scaleX(${p})`;
-      raf = requestAnimationFrame(tick);
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
