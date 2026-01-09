@@ -1,8 +1,37 @@
 import { Link } from "next-view-transitions"
+import { imageSize } from "image-size";
 import Lightbox from "./Lightbox";
+import Image from "next/image";
+import path from "node:path";
+import fs from "node:fs";
 
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
+}
+
+function getLocalImageDimensions(src) {
+  if (!src || typeof src !== "string") return null;
+  if (!src.startsWith("/")) return null; // only local public assets
+
+  // Strip query/hash to map to filesystem path
+  const clean = src.split("?")[0].split("#")[0];
+  const filePath = path.join(process.cwd(), "public", clean);
+
+  if (!fs.existsSync(filePath)) return null;
+
+  try {
+    const { width, height } = imageSize(filePath);
+    if (!width || !height) return null;
+    return { width, height };
+  } catch {
+    return null;
+  }
+}
+
+function toNumberMaybe(v) {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(String(v));
+  return Number.isFinite(n) ? n : null;
 }
 
 export const mdxComponents = {
@@ -39,21 +68,24 @@ export const mdxComponents = {
   li: (props) => <li {...props} className={cx("pl-1", props.className)} />,
   a: ({ href = "", ...props }) => {
     const isInternal = href.startsWith("/");
+    const isHash = href.startsWith("#");
+    const isMailOrTel = href.startsWith("mailto:") || href.startsWith("tel:");
     const cls = cx("text-zinc-200 underline underline-offset-4 hover:text-white", props.className);
 
     if (isInternal) return <Link href={href} {...props} className={cls} />;
+    if (isHash || isMailOrTel) return <a href={href} {...props} className={cls} />;
+
     return (
       <a
         href={href}
         {...props}
         className={cls}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
       />
     );
   },
   code: ({ className, ...props }) => {
-    // Inline code usually has no className; code blocks usually do.
     const inline = !className;
     return (
       <code
@@ -83,23 +115,53 @@ export const mdxComponents = {
       )}
     />
   ),
-    img: ({ src, alt, className, ...props }) => (
-    <Lightbox src={src} alt={alt} className="mt-5">
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        {...props}
-        className={[
-          "block w-full rounded-xl border border-zinc-800 bg-zinc-950/30 shadow-sm",
-          "transition-transform duration-200 ease-out",
-          "group-hover:scale-[1.01] group-hover:border-zinc-700",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      />
-    </Lightbox>
-  ),
+    img: ({ src, alt, className, ...props }) => {
+      if (!src) return null;
+
+      // If the author explicitly set width/height in MDX (rare), respect it.
+      const explicitW = toNumberMaybe(props.width);
+      const explicitH = toNumberMaybe(props.height);
+
+      const inferred = !explicitW || !explicitH ? getLocalImageDimensions(src) : null;
+      const width = explicitW && explicitH ? explicitW : inferred?.width;
+      const height = explicitW && explicitH ? explicitH : inferred?.height;
+
+      const sharedClass = [
+        "block w-full rounded-xl border border-zinc-800 bg-zinc-950/30 shadow-sm",
+        "transition-transform duration-200 ease-out",
+        "group-hover:scale-[1.01] group-hover:border-zinc-700",
+        "h-auto", // important for responsive sizing
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      // Remote images (or locals we can't size) fall back to <img>
+      const canUseNextImage = Boolean(width && height);
+
+      return (
+        <Lightbox src={src} alt={alt} className="mt-5">
+          {canUseNextImage ? (
+            <Image
+              src={src}
+              alt={alt || ""}
+              width={width}
+              height={height}
+              sizes="(min-width: 1024px) 980px, 100vw"
+              className={sharedClass}
+              // Next already lazy-loads by default (unless priority)
+            />
+          ) : (
+            <img
+              src={src}
+              alt={alt}
+              loading="lazy"
+              {...props}
+              className={sharedClass}
+            />
+          )}
+        </Lightbox>
+      );
+    },
   hr: (props) => <hr {...props} className={cx("my-10 border-zinc-800", props.className)} />,
 };

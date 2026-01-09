@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { getProjects, getPosts } from "../../lib/content";
+import { getSiteUrl } from "../../lib/site-url"
 
 function escapeXml(str) {
   return String(str)
@@ -12,18 +13,14 @@ function escapeXml(str) {
 }
 
 export function GET() {
-  const site =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-    "http://localhost:3000";
+  const site = getSiteUrl();
 
-  // Static routes you always want indexed
   const staticRoutes = [
     { path: "/", priority: "1.0" },
     { path: "/projects", priority: "0.8" },
     { path: "/writing", priority: "0.8" },
   ];
 
-  // Content routes: ONLY public
   const projects = getProjects()
     .filter((p) => (p.visibility || "public") === "public")
     .map((p) => ({

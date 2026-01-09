@@ -3,9 +3,9 @@ import Badge from "../components/Badge";
 import { getProjects, getPosts } from "../lib/content";
 
 const CONTACT = {
-  email: "hello@bphdev.com",         // <-- replace this
+  email: "hello@bphdev.com",         
   github: "https://github.com/bju12290",
-  linkedin: "https://www.linkedin.com/in/brian-hartnett-jr/", // optional
+  linkedin: "https://www.linkedin.com/in/brian-hartnett-jr/",
 };
 
 export const metadata = {
@@ -150,7 +150,6 @@ export default function HomePage() {
 
   return (
     <main className="pb-14">
-      {/* FULL-BLEED, FULL-VIEWPORT HERO (breaks out of max-w container) */}
       <section
             className="
                 relative
@@ -159,7 +158,6 @@ export default function HomePage() {
             "
         >
 
-        {/* keep content aligned with your site width */}
         <div
             className="
             min-h-[calc(100vh-7rem)] min-h-[calc(100svh-7rem)]
@@ -192,7 +190,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* scroll cue pinned near bottom of viewport */}
             <a
               href="#below"
               className="absolute left-0 -bottom-16 sm:-bottom-20 inline-flex items-center gap-3 text-sm text-zinc-500 hover:text-zinc-300 transition"
@@ -315,7 +312,7 @@ export default function HomePage() {
                     <a
                       href={CONTACT.github}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-zinc-200 hover:text-zinc-100"
                     >
                       bju12290 →
@@ -328,7 +325,7 @@ export default function HomePage() {
                     <a
                       href={CONTACT.linkedin}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-zinc-200 hover:text-zinc-100"
                     >Open →</a>
                   </div>

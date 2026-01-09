@@ -38,7 +38,7 @@ export async function generateMetadata({ params }) {
       description,
       images: ogImages,
       publishedTime: post.date || undefined,
-      tags: post.topics || undefined, // posts use "topics" not "tags"
+      tags: post.topics || undefined,
     },
 
     twitter: {
@@ -51,7 +51,7 @@ export async function generateMetadata({ params }) {
 }
 
 export async function generateStaticParams() {
-  return getPosts().map((p) => ({ slug: p.slug }));
+  return getPosts({ includeUnlisted: true }).map((p) => ({ slug: p.slug }));
 }
 
 export default async function PostPage({ params }) {

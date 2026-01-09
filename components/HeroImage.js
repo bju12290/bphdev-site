@@ -20,7 +20,6 @@ export default function HeroImage({ hero, title }) {
   return (
     <figure
       className={[
-        // Scale the *frame* so it “expands” instead of zooming/cropping inside a clipped box
         "overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/30",
         "transition-transform duration-200 ease-out will-change-transform",
         "hover:scale-[1.01] hover:border-zinc-700",

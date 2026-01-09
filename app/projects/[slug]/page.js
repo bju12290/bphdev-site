@@ -40,7 +40,6 @@ export async function generateMetadata({ params }) {
       description,
       images: ogImages,
 
-      // Optional nice-to-have (your content supports it)
       publishedTime: project.date || undefined,
       tags: project.tags || undefined,
     },
@@ -55,8 +54,9 @@ export async function generateMetadata({ params }) {
 }
 
 export async function generateStaticParams() {
-  return getProjects().map((p) => ({ slug: p.slug }));
+  return getProjects({ includeUnlisted: true }).map((p) => ({ slug: p.slug }));
 }
+
 
 export default async function ProjectPage({ params }) {
   const { slug } = await params;

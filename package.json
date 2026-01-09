@@ -22,6 +22,7 @@
   "homepage": "https://github.com/bju12290/bphdev-site#readme",
   "dependencies": {
     "gray-matter": "^4.0.3",
+    "image-size": "^2.0.2",
     "next": "^16.1.1",
     "next-mdx-remote": "^5.0.0",
     "next-view-transitions": "^0.3.5",

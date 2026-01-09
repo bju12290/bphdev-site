@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { getPosts } from "../../lib/content";
+import { getSiteUrl } from "../../lib/site-url"
 
 function escapeXml(str = "") {
   return String(str)
@@ -17,7 +18,7 @@ function toRfc822(dateStr) {
 }
 
 export function GET() {
-  const site = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const site = getSiteUrl();
 
   const posts = getPosts()
     .filter((p) => (p.visibility || "public") === "public")

@@ -7,23 +7,10 @@ function prefersReducedMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
 
-function hasHardwareWebGL() {
-  try {
-    const c = document.createElement("canvas");
-    return !!(
-      c.getContext("webgl2", { failIfMajorPerformanceCaveat: true }) ||
-      c.getContext("webgl", { failIfMajorPerformanceCaveat: true })
-    );
-  } catch {
-    return false;
-  }
-}
-
 export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } = {}) {
   const svgRef = useRef(null);
   const circleEls = useRef([]);
 
-  // reset refs on render
   circleEls.current = [];
 
   const addCircleRef = (el) => {
@@ -40,13 +27,8 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
     const W = 1200;
     const H = 800;
 
-    // ---------- TUNING KNOBS ----------
-    // Overall animation speed (1 = current, 0.5 = half speed, 0.35 = very slow)
     const TIME_SCALE = 0.35;
-
-    // How much extra motion you get near the top (1 = current boost, lower = calmer hero)
     const HERO_MOTION_BOOST = 0.65;
-    // ---------------------------------
 
     // seed circles (stable positions + phases)
     const seeds = circles.map((_, i) => {
@@ -64,73 +46,137 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       };
     });
 
-    const renderFrame = (ms, scrollY = 0) => {
-    const t = (ms / 1000) * TIME_SCALE;
+    const calcIntensity = (scrollY) => {
+      const progress = Math.min(scrollY / 900, 1);
+      const intensity = 1 - progress * 0.85; // 1 -> ~0.15 (same as before)
+      return { progress, intensity };
+    };
 
-    const progress = Math.min(scrollY / 900, 1);
-    const intensity = 1 - progress * 0.85;
+    // EXACT original "darken over scroll" behavior
+    const applyOpacity = (scrollY) => {
+      const { intensity } = calcIntensity(scrollY);
+      svg.style.opacity = String(0.22 * intensity); // <-- back exactly as it was
+    };
 
-    // If we're freezing, we want it a bit more visible than your animated "calm" state
-    svg.style.opacity = String(0.16);
+    const renderCircles = (ms, scrollY) => {
+      const t = (ms / 1000) * TIME_SCALE;
+      const { progress, intensity } = calcIntensity(scrollY);
 
-    const motionFactor =
-      HERO_MOTION_BOOST + (1 - HERO_MOTION_BOOST) * (1 - intensity);
+      applyOpacity(scrollY);
 
-    for (let i = 0; i < circles.length; i++) {
-      const s = seeds[i];
+      const motionFactor =
+        HERO_MOTION_BOOST + (1 - HERO_MOTION_BOOST) * (1 - intensity);
 
-      const x =
-        W *
-        (s.x0 +
-          (s.sx * motionFactor) * Math.sin(t * s.sp + s.px) +
-          (0.015 * motionFactor) * Math.sin(t * 0.6 + s.px * 0.3));
+      for (let i = 0; i < circles.length; i++) {
+        const s = seeds[i];
 
-      const y =
-        H *
-        (s.y0 +
-          (s.sy * intensity * motionFactor) *
-            Math.cos(t * (s.sp * 0.9) + s.py) +
-          0.10 * progress);
+        const x =
+          W *
+          (s.x0 +
+            (s.sx * motionFactor) * Math.sin(t * s.sp + s.px) +
+            (0.015 * motionFactor) * Math.sin(t * 0.6 + s.px * 0.3));
 
-      const r =
-        s.r0 *
-        (0.85 + 0.15 * Math.sin(t * (s.sp * 1.1) + s.py)) *
-        (0.65 + 0.35 * intensity);
+        const y =
+          H *
+          (s.y0 +
+            (s.sy * intensity * motionFactor) * Math.cos(t * (s.sp * 0.9) + s.py) +
+            0.10 * progress);
 
-      circles[i].setAttribute("cx", x.toFixed(2));
-      circles[i].setAttribute("cy", y.toFixed(2));
-      circles[i].setAttribute("r", r.toFixed(2));
-    }
-  };
+        const r =
+          s.r0 *
+          (0.85 + 0.15 * Math.sin(t * (s.sp * 1.1) + s.py)) *
+          (0.65 + 0.35 * intensity);
 
-    // Always render ONE frame so "frozen" mode still shows goo
-    renderFrame(0, window.scrollY || 0);
+        circles[i].setAttribute("cx", x.toFixed(2));
+        circles[i].setAttribute("cy", y.toFixed(2));
+        circles[i].setAttribute("r", r.toFixed(2));
+      }
+    };
 
-    // Decide whether to animate
-    const animate = hasHardwareWebGL();
-
-    if (!animate) {
-      // Freeze: no rAF, no scroll listener. Background stays present and static.
-      return;
+    function hasHardwareWebGL() {
+      try {
+        const c = document.createElement("canvas");
+        return !!(
+          c.getContext("webgl2", { failIfMajorPerformanceCaveat: true }) ||
+          c.getContext("webgl", { failIfMajorPerformanceCaveat: true })
+        );
+      } catch {
+        return false;
+      }
     }
 
     let scrollY = window.scrollY || 0;
+
+    let rafScroll = 0;
     const onScroll = () => {
       scrollY = window.scrollY || 0;
+      if (rafScroll) return;
+      rafScroll = requestAnimationFrame(() => {
+        rafScroll = 0;
+        // In frozen mode this will just update opacity.
+        applyOpacity(scrollY);
+      });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
+    // Render once so blobs exist even if we freeze (circles start at r=0 otherwise)
+    renderCircles(0, scrollY);
+
+    const animate = hasHardwareWebGL();
+
     let raf = 0;
-    const tick = (ms) => {
-      renderFrame(ms, scrollY);
+    let running = false;
+
+    const start = () => {
+      if (!animate || running) return;
+      //console.log("[FluidBackdrop] start");
+      running = true;
+
+      const tick = (ms) => {
+        // If the tab becomes hidden between frames, bail.
+        if (document.visibilityState !== "visible") {
+          stop();
+          return;
+        }
+
+        renderCircles(ms, scrollY);
+        raf = requestAnimationFrame(tick);
+      };
+
       raf = requestAnimationFrame(tick);
     };
 
-    raf = requestAnimationFrame(tick);
+    const stop = () => {
+      console.log("[FluidBackdrop] stop");
+      running = false;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        stop();
+      } else {
+        // Re-render once immediately so it "snaps back" nicely, then resume.
+        renderCircles(performance.now(), scrollY);
+        start();
+      }
+    };
+
+    // Always keep opacity correct (even if not animating)
+    applyOpacity(scrollY);
+
+    if (animate) {
+      // Only start the heavy loop if we’re actually visible.
+      if (document.visibilityState === "visible") start();
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
 
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
+      if (rafScroll) cancelAnimationFrame(rafScroll);
       window.removeEventListener("scroll", onScroll);
+      if (animate) document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
@@ -147,7 +193,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
         ].join(" ")}
       />
 
-      {/* edge vignette (used to live only in the hero — move it here so there are no seams) */}
+      {/* edge vignette */}
       <div className="absolute inset-0 opacity-80 [background:radial-gradient(1200px_circle_at_50%_35%,transparent_40%,rgba(0,0,0,0.55)_85%)]" />
 
       <svg
@@ -180,7 +226,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
             <feGaussianBlur stdDeviation="8" />
           </filter>
 
-          {/* RGB gradient (used only when rgbMode is enabled) */}
+          {/* RGB gradient */}
             <linearGradient id="rgbGlow" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="#ff2d55" stopOpacity="0.9" />
                 <stop offset="20%" stopColor="#a855f7" stopOpacity="0.9" />

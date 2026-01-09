@@ -72,7 +72,6 @@ export default function Lightbox({
         onClick={() => setOpen(true)}
         aria-label={alt ? `Open image: ${alt}` : "Open image"}
         className={cx(
-          // baseline
           "group relative block w-full cursor-zoom-in text-left",
           className
         )}

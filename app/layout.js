@@ -1,9 +1,13 @@
 import "./globals.css";
-import { Link } from "next-view-transitions"
-import { Inter, JetBrains_Mono } from "next/font/google";
+
 import FluidBackdrop from "../components/FluidBackdrop";
 import ScrollProgress from "../components/ScrollProgress";
+
+import { Link } from "next-view-transitions"
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { ViewTransitions } from "next-view-transitions"
+import { getSiteUrl } from "../lib/site-url"
+import { getRootJsonLd } from "../lib/structured-data";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -18,7 +22,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(getSiteUrl()),
 
   title: {
     default: "Brian Hartnett — Automation-first engineering",
@@ -44,7 +48,6 @@ export const metadata = {
     ],
   },
 
-  // Optional: keep it even if you don’t use Twitter — many platforms read this format.
   twitter: {
     card: "summary_large_image",
     title: "Brian Hartnett — Automation-first engineering",
@@ -75,18 +78,19 @@ const FOOTER = {
 };
 
 export default function RootLayout({ children }) {
+  const jsonLd = getRootJsonLd();
+
   return (
     <ViewTransitions>
         <html lang="en" className={`${sans.variable} ${mono.variable}`}>
         <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
             <ScrollProgress />
             <FluidBackdrop rgbTopGlow={ENABLE_RGB_GLOW} rgbBlobs={ENABLE_RGB_BLOBS} />
 
-            {/*
-            Top scrim: keeps the navbar living in the same "atmosphere" as the hero.
-            Without this, the hero has its own scrim and you get a hard edge where
-            the header ends and the hero begins.
-            */}
             <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-44 bg-gradient-to-b from-black/55 via-black/20 to-transparent" />
             <div className="relative z-10 mx-auto max-w-5xl px-6">
             <header className="py-10 flex items-center justify-between">
@@ -114,18 +118,17 @@ export default function RootLayout({ children }) {
             </div>  
 
             <footer className="py-14 text-xs text-zinc-500">
-  {/* subtle divider that matches your atmosphere */}
+  
   <div className="h-px mb-8 bg-gradient-to-r from-transparent via-zinc-800/70 to-transparent" />
 
   <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    {/* left side */}
+    
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span>© {new Date().getFullYear()} Brian Hartnett</span>
       <span className="text-zinc-700">—</span>
       <span className="text-zinc-600">bphdev.com</span>
     </div>
 
-    {/* right side: “chips” so spacing never breaks and it matches your button aesthetic */}
     <div className="flex flex-wrap items-center gap-2">
       <a
         href={`mailto:${FOOTER.email}`}
@@ -137,7 +140,7 @@ export default function RootLayout({ children }) {
       <a
         href={FOOTER.github}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="inline-flex items-center rounded-xl border border-zinc-800 bg-zinc-950/35 px-3 py-1 text-zinc-300 transition hover:border-zinc-700 hover:text-zinc-100"
       >
         GitHub
@@ -146,7 +149,7 @@ export default function RootLayout({ children }) {
       <a
         href={FOOTER.linkedin}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="inline-flex items-center rounded-xl border border-zinc-800 bg-zinc-950/35 px-3 py-1 text-zinc-300 transition hover:border-zinc-700 hover:text-zinc-100"
       >
         LinkedIn
