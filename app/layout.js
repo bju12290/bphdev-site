@@ -90,8 +90,6 @@ export default function RootLayout({ children }) {
             type="application/ld+json"
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
           />
-          <Analytics/>
-          <SpeedInsights/>
             <ScrollProgress />
             <FluidBackdrop rgbTopGlow={ENABLE_RGB_GLOW} rgbBlobs={ENABLE_RGB_BLOBS} />
 
@@ -177,6 +175,8 @@ export default function RootLayout({ children }) {
 </footer>
 
             </div>
+          <Analytics/>
+          <SpeedInsights/>
         </body>
         </html>
     </ViewTransitions>
