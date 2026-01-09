@@ -3,6 +3,8 @@ import "./globals.css";
 import FluidBackdrop from "../components/FluidBackdrop";
 import ScrollProgress from "../components/ScrollProgress";
 
+import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/next"
 import { Link } from "next-view-transitions"
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ViewTransitions } from "next-view-transitions"
@@ -88,6 +90,8 @@ export default function RootLayout({ children }) {
             type="application/ld+json"
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
           />
+          <Analytics/>
+          <SpeedInsights/>
             <ScrollProgress />
             <FluidBackdrop rgbTopGlow={ENABLE_RGB_GLOW} rgbBlobs={ENABLE_RGB_BLOBS} />
 

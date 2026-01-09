@@ -21,6 +21,8 @@
   },
   "homepage": "https://github.com/bju12290/bphdev-site#readme",
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^1.3.1",
     "gray-matter": "^4.0.3",
     "image-size": "^2.0.2",
     "next": "^16.1.1",
