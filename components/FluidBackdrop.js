@@ -10,6 +10,8 @@ function prefersReducedMotion() {
 export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } = {}) {
   const svgRef = useRef(null);
   const circleEls = useRef([]);
+  const gooGroupRef = useRef(null);
+  const gooLoFilterRef = useRef(null);
 
   circleEls.current = [];
 
@@ -18,7 +20,9 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
   };
 
   useEffect(() => {
-    if (prefersReducedMotion()) return;
+    const reducedMotion = prefersReducedMotion();
+
+    gooLoFilterRef.current?.setAttribute("filterRes", "600 400");
 
     const circles = circleEls.current;
     const svg = svgRef.current;
@@ -58,11 +62,15 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       svg.style.opacity = String(0.22 * intensity); // <-- back exactly as it was
     };
 
-    const renderCircles = (ms, scrollY) => {
-      const t = (ms / 1000) * TIME_SCALE;
+    // Smooth opacity updates on mobile where rAF can be throttled during scroll
+    svg.style.willChange = "opacity";
+    svg.style.transition = "opacity 120ms linear";
+
+    const renderCircles = (timeMs, scrollY) => {
+      const t = (timeMs / 1000) * TIME_SCALE;
       const { progress, intensity } = calcIntensity(scrollY);
 
-      applyOpacity(scrollY);
+      //applyOpacity(scrollY);
 
       const motionFactor =
         HERO_MOTION_BOOST + (1 - HERO_MOTION_BOOST) * (1 - intensity);
@@ -93,53 +101,190 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       }
     };
 
-    function hasHardwareWebGL() {
-      try {
-        const c = document.createElement("canvas");
-        return !!(
-          c.getContext("webgl2", { failIfMajorPerformanceCaveat: true }) ||
-          c.getContext("webgl", { failIfMajorPerformanceCaveat: true })
-        );
-      } catch {
-        return false;
-      }
-    }
+    let scrollYTarget = window.scrollY || 0; // raw scroll from events
+    let scrollYForCircles = scrollYTarget;   // frozen/smoothed scroll used for blob math
 
-    let scrollY = window.scrollY || 0;
-
-    let rafScroll = 0;
+    let forceLowUntil = 0;       // set during scroll
     const onScroll = () => {
-      scrollY = window.scrollY || 0;
-      if (rafScroll) return;
-      rafScroll = requestAnimationFrame(() => {
-        rafScroll = 0;
-        // In frozen mode this will just update opacity.
-        applyOpacity(scrollY);
-      });
+      scrollYTarget = window.scrollY || 0;
+      forceLowUntil = performance.now() + 250;
+
+      // Update opacity directly from scroll events.
+      // On mobile browsers rAF can be throttled during scroll, which makes rAF-based opacity updates look jumpy.
+      applyOpacity(scrollYTarget);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
     // Render once so blobs exist even if we freeze (circles start at r=0 otherwise)
-    renderCircles(0, scrollY);
+    renderCircles(0, scrollYForCircles);
 
-    const animate = hasHardwareWebGL();
+    const animate = 
+        !reducedMotion;
 
     let raf = 0;
     let running = false;
 
+    // --- Quality / FPS controller knobs ---
+    const BAD_FPS = 48;          // below this = struggling (tune)
+    const BAD_HOLD_MS = 1200;    // must be bad for this long to downgrade
+    const PROBE_MS = 1800;       // how long we "try high again"
+    const PROBE_COOLDOWN_MS = 10000;
+
+    let quality = "HIGH"; // HIGH | LOW | PROBE
+    let targetFps = 60;
+
+    let nextProbeAt = 0;
+    let probeEndsAt = 0;
+
+    let lastFrameMs = 0;         // measures real rAF cadence
+    let simMs = 0;               // animation time accumulator (prevents time-jumps on mobile scroll)
+    let fpsEma = 60;             // smoothed fps
+
+    // Scroll smoothing/catch-up: prevents a big blob jump after mobile scroll pauses rAF.
+    let smoothScrollUntil = 0;
+    let prevScrollFreeze = false;
+    let badSince = 0;
+
+    let lastRenderMs = 0;        // your render throttle
+
+    let currentFilterId = null;
+    const setFilter = (id) => {
+      if (currentFilterId === id) return;
+      currentFilterId = id;
+      gooGroupRef.current?.setAttribute("filter", `url(#${id})`);
+    };
+
+    const setQuality = (q, nowMs) => {
+      if (quality === q) return;
+      quality = q;
+
+      // reset "bad" detector so we don’t instantly bounce
+      badSince = 0;
+
+      if (q === "HIGH") {
+        targetFps = 60;
+        setFilter("gooHi");
+      } else if (q === "LOW") {
+        targetFps = 24;
+        setFilter("gooLo");
+        nextProbeAt = nowMs + PROBE_COOLDOWN_MS;
+      } else if (q === "PROBE") {
+        targetFps = 60;
+        setFilter("gooHi");
+        probeEndsAt = nowMs + PROBE_MS;
+      }
+    };
+
     const start = () => {
       if (!animate || running) return;
-      //console.log("[FluidBackdrop] start");
       running = true;
 
+      // reset timing on start
+      lastFrameMs = 0;
+      lastRenderMs = 0;
+      fpsEma = 60;
+
       const tick = (ms) => {
-        // If the tab becomes hidden between frames, bail.
-        if (document.visibilityState !== "visible") {
-          stop();
-          return;
+        if (document.visibilityState !== "visible") { stop(); return; }
+
+        // --- measure real frame cadence (EMA) ---
+        const frameDt = lastFrameMs ? (ms - lastFrameMs) : 16.7;
+        lastFrameMs = ms;
+
+        const measuredDt = Math.min(frameDt, 80);
+        const fps = 1000 / Math.max(1, measuredDt);
+        fpsEma = fpsEma * 0.9 + fps * 0.1;
+
+        // iOS Safari (and some mobile browsers) can pause/throttle rAF during scroll.
+        // Drive motion from a clamped accumulator so time never jumps.
+        const clampedDt = Math.min(frameDt, 50); // cap a single step (~20fps)
+
+        // If rAF was paused (common during mobile scroll), ease to the new scroll target instead of snapping.
+        const scrollDelta = Math.abs(scrollYTarget - scrollYForCircles);
+        if (frameDt > 150 && scrollDelta > 40) {
+          smoothScrollUntil = ms + 1000;
         }
 
-        renderCircles(ms, scrollY);
+        // --- scrolling behavior ---
+        const scrolling = ms < forceLowUntil;
+
+        // Only pause blob motion during scroll when performance is degrading.
+        // This preserves the "nice" scrolling animation on fast devices.
+        const SCROLL_FREEZE_FPS = 5;
+        const scrollDegrading = scrolling && (quality === "LOW" || fpsEma < SCROLL_FREEZE_FPS);
+        const scrollFreeze = scrollDegrading;
+
+        // When we stop freezing, ease the blobs toward the new scroll position instead of snapping.
+        if (prevScrollFreeze && !scrollFreeze) {
+          smoothScrollUntil = ms + 450;
+        }
+        prevScrollFreeze = scrollFreeze;
+
+        // During freeze we keep scrollYForCircles fixed.
+        // After freeze (or after rAF was throttled), we catch up smoothly *without ever snapping*.
+        // This prevents the "delayed jump" you noticed (especially on scroll-up where intensity increases and jumps are obvious).
+        if (!scrollFreeze) {
+          const deltaY = scrollYTarget - scrollYForCircles;
+          const absDeltaY = Math.abs(deltaY);
+
+          if (absDeltaY < 0.5) {
+            scrollYForCircles = scrollYTarget;
+          } else {
+            // Time-based smoothing so behavior is consistent across frame rates.
+            // Use a slightly slower time constant during the catch-up window.
+            const tau = ms < smoothScrollUntil ? 220 : 140; // ms
+            const alpha = 1 - Math.exp(-clampedDt / tau);
+
+            // Cap per-tick catch-up to avoid visible "teleport" steps on low FPS devices.
+            const maxStep = ms < smoothScrollUntil ? 60 : 120; // px
+            const step = Math.sign(deltaY) * Math.min(absDeltaY * alpha, maxStep);
+            scrollYForCircles += step;
+          }
+        }
+
+        if (!scrollFreeze) {
+          simMs += clampedDt;
+        }
+
+        const effectiveTargetFps = scrollDegrading ? Math.min(targetFps, 24) : targetFps;
+
+        // Only switch to the cheap filter while scrolling if we’re degrading; otherwise keep the nice one.
+        setFilter((quality === "LOW" || scrollDegrading) ? "gooLo" : "gooHi");
+        // --- downgrade logic (only meaningful when trying HIGH-ish) ---
+        const inHighMode = (quality === "HIGH" || quality === "PROBE");
+        if (inHighMode) {
+          if (fpsEma < BAD_FPS) {
+            badSince = badSince || ms;
+          } else {
+            badSince = 0;
+          }
+
+          if (badSince && (ms - badSince) > BAD_HOLD_MS) {
+            setQuality("LOW", ms);
+          }
+        }
+
+        // --- probe logic: occasionally test if we can go back to HIGH ---
+        if (quality === "LOW" && ms > nextProbeAt && ms > forceLowUntil + 400) {
+          setQuality("PROBE", ms);
+        }
+
+        // --- if probe ends and we didn’t trigger downgrade, promote to HIGH ---
+        if (quality === "PROBE" && ms > probeEndsAt) {
+          setQuality("HIGH", ms);
+        }
+
+        // --- render throttle ---
+        // If we decided to freeze during scroll (degrading), do *not* push circle updates.
+        // Keeping the blobs static avoids the "jumping spheres" look on weak devices.
+        if (!scrollFreeze) {
+          const minDt = 1000 / effectiveTargetFps;
+          if (!lastRenderMs || (ms - lastRenderMs) >= minDt) {
+            lastRenderMs = ms;
+            renderCircles(simMs, scrollYForCircles);
+          }
+        }
+
         raf = requestAnimationFrame(tick);
       };
 
@@ -147,7 +292,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
     };
 
     const stop = () => {
-      console.log("[FluidBackdrop] stop");
+      // console.log("[FluidBackdrop] stop");
       running = false;
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
@@ -158,13 +303,13 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
         stop();
       } else {
         // Re-render once immediately so it "snaps back" nicely, then resume.
-        renderCircles(performance.now(), scrollY);
+        renderCircles(simMs, scrollYForCircles);
         start();
       }
     };
 
     // Always keep opacity correct (even if not animating)
-    applyOpacity(scrollY);
+    applyOpacity(scrollYTarget);
 
     if (animate) {
       // Only start the heavy loop if we’re actually visible.
@@ -173,9 +318,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
     }
 
     return () => {
-      stop();
-      if (rafScroll) cancelAnimationFrame(rafScroll);
-      window.removeEventListener("scroll", onScroll);
+      stop();      window.removeEventListener("scroll", onScroll);
       if (animate) document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
@@ -205,9 +348,24 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
         aria-hidden="true"
       >
         <defs>
-          {/* Gooey metaball filter */}
-          <filter id="goo">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="22" result="blur" />
+          {/* Gooey metaball filters */}
+          <filter id="gooHi">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur" />
+            <feColorMatrix
+              in="blur"
+              mode="matrix"
+              values="
+                1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 20 -10"
+              result="goo"
+            />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+
+          <filter ref={gooLoFilterRef} id="gooLo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur" />
             <feColorMatrix
               in="blur"
               mode="matrix"
@@ -239,7 +397,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
 
         {/* light blob layer */}
         <g className={rgbBlobs ? "rgb-hue" : ""}>
-            <g filter="url(#goo)" opacity="1">
+            <g ref={gooGroupRef} filter="url(#gooHi)" opacity="1">
                 {Array.from({ length: 7 }).map((_, i) => (
                 <circle
                     key={`c-${i}`}
