@@ -338,84 +338,91 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
 
       {/* edge vignette */}
       <div className="absolute inset-0 opacity-80 [background:radial-gradient(1200px_circle_at_50%_35%,transparent_40%,rgba(0,0,0,0.55)_85%)]" />
-
-      <svg
-        ref={svgRef}
-        className="absolute inset-0 h-full w-full"
-        viewBox="0 0 1200 800"
-        preserveAspectRatio="xMidYMid slice"
-        style={{ opacity: 0.12 }}
-        aria-hidden="true"
+      
+      <div
+        className={[
+          "absolute inset-0",
+          rgbBlobs ? "rgb-hue [will-change:filter]" : "",
+        ].join(" ")}
       >
-        <defs>
-          {/* Gooey metaball filters */}
-          <filter id="gooHi">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur" />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="
-                1 0 0 0 0
-                0 1 0 0 0
-                0 0 1 0 0
-                0 0 0 20 -10"
-              result="goo"
-            />
-            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-          </filter>
+        <svg
+          ref={svgRef}
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 1200 800"
+          preserveAspectRatio="xMidYMid slice"
+          style={{ opacity: 0.12 }}
+          aria-hidden="true"
+        >
+          <defs>
+            {/* Gooey metaball filters */}
+            <filter id="gooHi">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur" />
+              <feColorMatrix
+                in="blur"
+                mode="matrix"
+                values="
+                  1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 20 -10"
+                result="goo"
+              />
+              <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            </filter>
 
-          <filter ref={gooLoFilterRef} id="gooLo">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur" />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="
-                1 0 0 0 0
-                0 1 0 0 0
-                0 0 1 0 0
-                0 0 0 20 -10"
-              result="goo"
-            />
-            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-          </filter>
+            <filter ref={gooLoFilterRef} id="gooLo">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur" />
+              <feColorMatrix
+                in="blur"
+                mode="matrix"
+                values="
+                  1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 20 -10"
+                result="goo"
+              />
+              <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            </filter>
 
-          {/* extra softness */}
-          <filter id="soft">
-            <feGaussianBlur stdDeviation="8" />
-          </filter>
+            {/* extra softness */}
+            <filter id="soft">
+              <feGaussianBlur stdDeviation="8" />
+            </filter>
 
-          {/* RGB gradient */}
-            <linearGradient id="rgbGlow" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ff2d55" stopOpacity="0.9" />
-                <stop offset="20%" stopColor="#a855f7" stopOpacity="0.9" />
-                <stop offset="40%" stopColor="#3b82f6" stopOpacity="0.9" />
-                <stop offset="60%" stopColor="#22d3ee" stopOpacity="0.9" />
-                <stop offset="80%" stopColor="#22c55e" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#ff2d55" stopOpacity="0.9" />
-            </linearGradient>
-        </defs>
+            {/* RGB gradient */}
+              <linearGradient id="rgbGlow" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#ff2d55" stopOpacity="0.9" />
+                  <stop offset="20%" stopColor="#a855f7" stopOpacity="0.9" />
+                  <stop offset="40%" stopColor="#3b82f6" stopOpacity="0.9" />
+                  <stop offset="60%" stopColor="#22d3ee" stopOpacity="0.9" />
+                  <stop offset="80%" stopColor="#22c55e" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#ff2d55" stopOpacity="0.9" />
+              </linearGradient>
+          </defs>
 
-        {/* light blob layer */}
-        <g className={rgbBlobs ? "rgb-hue" : ""}>
-            <g ref={gooGroupRef} filter="url(#gooHi)" opacity="1">
-                {Array.from({ length: 7 }).map((_, i) => (
-                <circle
-                    key={`c-${i}`}
-                    ref={addCircleRef}
-                    cx="0"
-                    cy="0"
-                    r="0"
-                    fill={rgbBlobs ? "rgba(255,0,128,0.9)" : "rgba(255,255,255,0.9)"}
-                />
-                ))}
-            </g>
-        </g>
+          {/* light blob layer */}
+          <g>
+              <g ref={gooGroupRef} filter="url(#gooHi)" opacity="1">
+                  {Array.from({ length: 7 }).map((_, i) => (
+                  <circle
+                      key={`c-${i}`}
+                      ref={addCircleRef}
+                      cx="0"
+                      cy="0"
+                      r="0"
+                      fill={rgbBlobs ? "rgba(255,0,128,0.9)" : "rgba(255,255,255,0.9)"}
+                  />
+                  ))}
+              </g>
+          </g>
 
-        {/* faint shadow layer for depth */}
-        <g filter="url(#soft)" opacity="0.12">
-          <ellipse cx="600" cy="720" rx="520" ry="240" fill="black" />
-        </g>
-      </svg>
+          {/* faint shadow layer for depth */}
+          <g filter="url(#soft)" opacity="0.12">
+            <ellipse cx="600" cy="720" rx="520" ry="240" fill="black" />
+          </g>
+        </svg>
+      </div>
     </div>
   );
 }
