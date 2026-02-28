@@ -22,7 +22,7 @@ A fast, MDX-driven portfolio/case study site built with the Next.js App Router. 
   - `robots.txt`, `sitemap.xml`, and `rss.xml` route handlers
   - Open Graph + JSON-LD helpers in `lib/`
 - **Performance-friendly “fancy”**:
-  - animated fluid backdrop that respects reduced-motion and tries to avoid running on low-power configs
+  - tiered fluid backdrop: SVG goo on capable machines, cheaper soft-blob fallback on weak renderers, static for reduced-motion
 - **Security headers** in `next.config.mjs` (nosniff, frame denial, conservative permissions policy, etc.)
 
 ## Local development

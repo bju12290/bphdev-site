@@ -1,0 +1,34 @@
+---
+title: "Batch Scripting and Project Structure"
+slug: "batch-scripting-and-project-structure"
+summary: "A recounting of my foray into batch scripting and the questions about project structure it arose."
+visibility: "private"   # public | unlisted | private
+pinned: false
+topics: ["batch", "scripting", "project structure", "folder structure", "project layout", "fun stuff"]
+date: "2026-02-15"
+evergreen: true
+hero:
+  image: ""
+  alt: ""
+---
+
+Repo: **[bju12290/cmd-tools](https://github.com/bju12290/cmd-tools)**
+
+# What I wanted?
+- A project directory builder, basically a way to offload making project folders, Readme files, licenses, setup stuff. One command, one project name, one project type flag.
+- Usage I landed on: newtoy cool_project_name --python
+
+# What did I learn?
+
+- Brief batch history
+    - Fossilized DNA of DOS
+    - Started in the early 80s with MS-DOS as a way to automate sequences of commands. Shows its age.
+
+- Some basics about batch scripting syntax
+    - The strange REM comment format - Why does this exist? Further research warranted.
+    - Processing arguments - really elegant, like way easier than I expected
+    - Function definition - different than what I'm used to but not bad, kind of elegant
+
+- Realized I don't have a pre-defined folder/file structure for projects, and I wasn't sure what the best approach was.
+    - Started with python, discovered both flat layouts and src layouts. Prefer src based layouts so I added that to my batch scripts for now.
+    - Will be adding more later as I feel I have a need for them.

@@ -93,7 +93,7 @@ export default function RootLayout({ children }) {
             <ScrollProgress />
             <FluidBackdrop rgbTopGlow={ENABLE_RGB_GLOW} rgbBlobs={ENABLE_RGB_BLOBS} />
 
-            <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-44 bg-gradient-to-b from-black/55 via-black/20 to-transparent" />
+            <div className="top-nav-scrim pointer-events-none fixed inset-x-0 top-0 z-0 h-44" />
             <div className="relative z-10 mx-auto max-w-5xl px-6">
             <header className="py-10 flex items-center justify-between">
                 <Link

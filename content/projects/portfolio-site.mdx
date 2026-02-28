@@ -12,7 +12,7 @@ role: ["Solo"]
 highlights:
   - "Content model for Projects + Writing (MDX) with visibility controls: public / unlisted / private"
   - "MDX pipeline with GitHub-dark code highlighting + custom components (images, lightbox, tables, etc.)"
-  - "Animated ‘goo’ backdrop that respects reduced-motion, pauses when tab is hidden, and avoids chewing CPU on weak GPUs"
+  - "Tiered animated backdrop: SVG goo on capable machines, a cheaper soft-blob fallback on weak renderers, and static for reduced-motion"
   - "SEO baseline: JSON-LD, sitemap.xml, rss.xml, robots.txt, OG/Twitter cards, canonical URL resolver"
   - "Security headers (nosniff, frame denial, strict referrer policy, permissions policy) applied globally"
 links:
@@ -24,12 +24,12 @@ hero:
   ratio: "1200 / 630"
 ---
 
-## Why build a “real” portfolio site
-I didn’t want a portfolio that felt like a graveyard of half-finished ideas or a template I’d never touch again.
+## Why build a "real" portfolio site
+I did not want a portfolio that felt like a graveyard of half-finished ideas or a template I would never touch again.
 
 The goal was to treat the site like a small product:
 
-- **Content-first**: adding a project should feel like writing, not “building a page”.
+- **Content-first**: adding a project should feel like writing, not "building a page".
 - **Fast + readable**: minimal UI friction, strong typography rhythm, and no layout jank.
 - **Honest engineering**: shipping-minded details (SEO, security headers, error states) without turning the site into a framework science experiment.
 
@@ -45,9 +45,9 @@ The goal was to treat the site like a small product:
   - Frontmatter drives listing cards, badges, metadata, and visibility
 - **Presentation layer**
   - Tailwind CSS with a few custom global styles (MDX rhythm, scrollbar polish, view transitions)
-  - A small set of “product-y” components: `Badge`, `HeroImage`, `Lightbox`, `ScrollProgress`, `FluidBackdrop`
+  - A small set of "product-y" components: `Badge`, `HeroImage`, `Lightbox`, `ScrollProgress`, `FluidBackdrop`
 
-### Data flow (content → page)
+### Data flow (content -> page)
 1. A project/post starts life as an `.mdx` file with frontmatter.
 2. `lib/content.js` loads the collection, applies **visibility rules**, and sorts:
    - `featured` first
@@ -58,14 +58,14 @@ The goal was to treat the site like a small product:
 
 ## Notable technical details
 
-### 1) A content model with “privacy” baked in
+### 1) A content model with "privacy" baked in
 Every content file can be:
 
 - **public**: listed and routable
 - **unlisted**: routable by direct URL, but not listed
 - **private**: not routable and not listed
 
-That gives me a clean workflow for drafts, “client work I can’t publicize yet”, and works-in-progress without juggling branches.
+That gives me a clean workflow for drafts, "client work I cannot publicize yet", and works-in-progress without juggling branches.
 
 ![Projects index page](/images/projects/portfolio-site/projects.png)
 
@@ -78,12 +78,12 @@ MDX compilation uses:
 On top of that, `mdx-components.js` provides opinionated rendering:
 
 - Inline code vs block code styling
-- A-link styling that doesn’t look like 1998
-- Tables that don’t explode the layout
-- A consistent “premium rhythm” for headings, paragraphs, and spacing
+- A-link styling that does not look like 1998
+- Tables that do not explode the layout
+- A consistent "premium rhythm" for headings, paragraphs, and spacing
 
 ### 3) Images: low-jank by default + optional lightbox
-For local images in `public/`, the MDX image component tries to **infer width/height** on the server (using `image-size`). When it can, it renders `next/image` with real dimensions to reduce layout shift. If it can’t, it gracefully falls back to a normal `<img>`.
+For local images in `public/`, the MDX image component tries to **infer width/height** on the server (using `image-size`). When it can, it renders `next/image` with real dimensions to reduce layout shift. If it cannot, it gracefully falls back to a normal `<img>`.
 
 On top of that, any image can be wrapped in a **Lightbox**:
 - Accessible dialog semantics (`role="dialog"`, `aria-modal`)
@@ -93,29 +93,30 @@ On top of that, any image can be wrapped in a **Lightbox**:
 
 ![Lightbox image component.](/images/projects/portfolio-site/lightbox.png)
 
-### 4) View transitions without the “my whole page just flashed” vibe
-I wanted transitions between pages to feel smooth, but I didn’t want the animated backdrop to restart or crossfade weirdly.
+### 4) View transitions without the "my whole page just flashed" vibe
+I wanted transitions between pages to feel smooth, but I did not want the animated backdrop to restart or crossfade weirdly.
 
 So the CSS explicitly:
 - Transitions **only** the main content container (`.vt-main`)
 - Disables the default root snapshot crossfade
 
-Result: navigation feels “native”, but the background stays stable.
+Result: navigation feels "native", but the background stays stable.
 
 ### 5) The goo backdrop is performance-gated (on purpose)
-The animated background is fun… until it turns into a laptop fan benchmark.
+The animated background is fun until it turns into a laptop fan benchmark.
 
 `FluidBackdrop` is written like a polite guest:
 
 - Respects `prefers-reduced-motion`
-- Checks for a **hardware WebGL context** (using `failIfMajorPerformanceCaveat`)
+- Tries a **hardware-capable WebGL context** with `failIfMajorPerformanceCaveat` before enabling the expensive SVG goo path
+- Falls back to a much cheaper animated soft-blob layer when that probe fails
 - Uses passive scroll listeners + `requestAnimationFrame`
 - Stops animation when the tab is hidden, resumes when visible
 - Still keeps the **scroll-based darkening** effect even when not animating (so readability stays consistent)
 
-So the site looks “alive” on capable machines, and still looks good (but calmer) on weaker ones.
+So the site looks alive on capable machines, and still looks intentional on weaker ones instead of trying to fake the same effect badly.
 
-### 6) SEO + feeds + robots (because it’s 2026)
+### 6) SEO + feeds + robots (because it is 2026)
 Baseline SEO is baked in:
 
 - Per-page metadata (title/description/canonical/OG/Twitter)
@@ -128,10 +129,10 @@ Baseline SEO is baked in:
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy: …` (locked down)
+- `Permissions-Policy: ...` (locked down)
 - `X-XSS-Protection: 0` (explicitly disabled; modern browsers ignore it anyway)
 
-No, it’s not a bank. But it’s also not a WordPress blog from 2009.
+No, it is not a bank. But it is also not a WordPress blog from 2009.
 
 ## Links
 - Demo: https://bphdev.com

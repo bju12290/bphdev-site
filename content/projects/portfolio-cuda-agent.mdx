@@ -1,0 +1,116 @@
+---
+title: "cuda-agent"
+slug: "cuda-agent"
+summary: "A config-driven CLI that turns local build, test, benchmark, and compare workflows into reproducible runs with artifacts and reports."
+featured: false
+visibility: "public" # public | unlisted | private
+status: "shipped" # shipped | maintained | archived | wip
+date: "2026-02-28"
+tags: ["developer-tools", "benchmarking", "performance", "cuda", "automation", "cli"]
+stack: ["Python", "SQLite", "YAML", "CMake", "CUDA", "Node.js"]
+role: ["Solo"]
+highlights:
+  - "Built a config-driven CLI that runs build/test/benchmark pipelines and stores immutable run artifacts."
+  - "Added SQLite-backed run history, Markdown reports, and direction-aware compare output."
+  - "Validated the workflow across CUDA, Python, and Node.js projects using real and fixture-based CLI runs."
+links:
+  demo: ""
+  repo: "https://github.com/bju12290/cuda-agent"
+hero:
+  image: "/images/projects/cuda-agent/compare.png"
+  alt: "Terminal view showing cuda-agent compare output with improvement and regression labels."
+---
+
+## What it is
+`cuda-agent` is a config-driven CLI for running repeatable local engineering workflows: build, optional test, benchmark, parse, store artifacts, and compare results. I started it around CUDA performance work on Windows, but kept the core execution model generic so the same pipeline can also drive Python and Node.js projects through command-based targets.
+
+The goal was to turn ad hoc benchmark sessions into immutable runs with logs, parsed metrics, summaries, and a report. That makes it much easier to rerun the same workflow, inspect failures, and compare one run against another without relying on memory.
+
+## Outcomes
+- Shipped an MVP 2 release with `run`, `runs`, `report`, and `compare`
+- Added SQLite-backed run indexing and direction-aware metric comparisons
+- Validated the CLI manually across CUDA, Python, and Node.js workflows, plus an automated pytest suite and GitHub Actions test workflow
+
+## Problem
+Performance and validation workflows tend to grow organically in the worst way: a few shell commands, a couple of copied logs, maybe a spreadsheet if someone is being disciplined. That works until you need to answer basic questions like:
+
+- What exactly ran?
+- Was this binary rebuilt first?
+- Which metrics changed?
+- Was that an improvement or just noise?
+- Can I reproduce the same result tomorrow?
+
+I wanted a small tool that made those workflows repeatable and auditable before doing anything more ambitious with profiling or "agentic" behavior.
+
+## Constraints
+The biggest constraint was sequencing. The project needed to be useful with zero AI involvement, which meant the baseline runner had to stand on its own first.
+
+It also had to handle a fairly messy reality:
+
+- CUDA workflows on Windows depend on MSVC and CUDA shell setup being correct
+- the system needed to stay generic enough for non-CUDA projects
+- comparisons had to be more meaningful than raw deltas, especially when some metrics are "lower is better" and others are "higher is better"
+
+## Solution
+I treated the project as orchestration first. The CLI loads a YAML config, resolves a workspace, runs build and optional test commands, executes a target repeatedly, parses metrics from stdout, writes receipts to disk, indexes the run in SQLite, and exposes that history through `runs`, `report`, and `compare`.
+
+That led to two target-launch paths:
+
+- `run.cmd` for generic command-based workflows
+- `run.exe_glob` for executable-first workflows like CUDA samples
+
+The compare layer became the main MVP 2 quality-of-life feature. Instead of only printing numeric diffs, it uses explicit per-metric direction hints like `better: higher|lower` and falls back to name/unit heuristics for older summaries. That lets it classify changes as improvements or regressions in a way that is actually useful during local iteration.
+
+![Terminal output of `cuda-agent compare` for two `matrixMul` CUDA runs, showing improvement labels for GFLOPS and kernel time.](/images/projects/cuda-agent/compare.png)
+
+## Architecture
+
+### High-level shape
+- **Config layer**
+  - YAML loading, interpolation, and validation
+  - Target definitions, parse rules, and success rules
+- **Execution layer**
+  - Subprocess adapters for build, test, and target execution
+  - Captured mode plus live-streaming mode for long-running commands
+- **Pipeline layer**
+  - Baseline orchestration for build -> test -> benchmark -> parse -> store -> report
+- **Storage layer**
+  - Filesystem receipts plus a lightweight SQLite index
+- **Compare/report layer**
+  - Markdown reports
+  - Indexed run lookup
+  - Delta summaries with direction-aware classification
+
+### Data flow (config -> run -> compare)
+1. A project config defines the workspace, build/test steps, storage, and runnable targets.
+2. `cuda-agent run <target>` executes the baseline pipeline and writes an immutable run directory with logs, parsed metrics, `summary.json`, and `report.md`.
+3. Each run is indexed in SQLite with metadata like project, target, status, launch command, and artifact paths.
+4. `cuda-agent report <run_id>` renders the stored run report, while `cuda-agent compare <a> <b>` reads the stored summaries and computes deltas.
+
+### Reliability notes
+- Runs are receipt-driven: build logs, test logs, per-run stdout/stderr, parsed metrics, and reports are all stored.
+- The command surface is intentionally small and explicit.
+- I added fixture projects for Python and Node.js so non-CUDA testing did not depend on random external repos.
+
+![Terminal output from `cuda-agent report <run_id>` showing numeric aggregates and stability notes for a run.](/images/projects/cuda-agent/report.png)
+
+## Notable technical details
+
+### 1) A generic execution model instead of language-specific branches
+The core schema models build, test, run, parse, store, and report. That keeps the system extensible without introducing separate top-level config sections for Python, JavaScript, Java, and so on. The same CLI can run CUDA binaries, Python modules, or npm scripts as long as the config defines the commands clearly.
+
+### 2) Run history that is actually queryable
+Each completed run is indexed in SQLite and exposed through CLI filters like target and status. That turned the project from "runner that drops files in a folder" into something that can answer questions about prior results quickly.
+
+> Screenshot placeholder: `cuda-agent runs --target matrixMul --status FAIL` showing filtered run history and the stored launch command.
+
+### 3) Compare output that understands metric direction
+One of the most important changes in MVP 2 was moving beyond raw diffs. Metrics can now declare whether higher or lower is better, and compare output uses that to label changes as improvements or regressions. That changes the output from "data dump" to "useful decision support."
+
+### 4) Cross-ecosystem validation without pretending to have full adapters
+I did not want to overclaim "multi-language support" before the system earned it. Instead, I validated the generic command-based path using bundled Python and Node.js fixture projects. That let me prove the runner works outside CUDA while staying honest about the current scope.
+
+![Node.js fixture run showing a command-based benchmark target.](/images/projects/cuda-agent/node.png)
+
+## Links
+- Repo: https://github.com/bju12290/cuda-agent
