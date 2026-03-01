@@ -1,0 +1,245 @@
+---
+title: "MDX Formatting Reference"
+slug: "mdx-formatting-reference"
+summary: "Copy/paste examples for the Markdown and MDX syntax this site supports."
+visibility: "unlisted"   # public | unlisted | private
+pinned: false
+topics: ["mdx", "markdown", "formatting", "reference"]
+date: "YYYY-MM-DD"
+evergreen: true
+hero:
+  image: ""
+  alt: ""
+---
+
+Use this file as a copy/paste playground when writing posts or project pages.
+
+## Headings
+
+````mdx
+# H1 heading
+## H2 heading
+### H3 heading
+````
+
+## Paragraphs and emphasis
+
+````mdx
+This is a normal paragraph.
+
+This text has **bold**, *italic*, and **mixed with `inline code`**.
+````
+
+This is a normal paragraph.
+
+This text has **bold**, *italic*, and **mixed with `inline code`**.
+
+## Inline code
+
+````mdx
+Use `npm run dev` to start the site.
+````
+
+Use `npm run dev` to start the site.
+
+## Links
+
+````mdx
+[Internal project link](/projects/portfolio-site)
+[Internal writing link](/writing/tiny-webhook-bridge-pattern)
+[External link](https://github.com)
+[Email link](mailto:you@example.com)
+[Phone link](tel:+15555555555)
+[Jump to section](#lists)
+````
+
+[Internal project link](/projects/portfolio-site)  
+[Internal writing link](/writing/tiny-webhook-bridge-pattern)  
+[External link](https://github.com)  
+[Email link](mailto:you@example.com)  
+[Phone link](tel:+15555555555)  
+[Jump to section](#lists)
+
+## Lists
+
+````mdx
+- Unordered item
+- Another item
+  - Nested item
+
+1. First ordered item
+2. Second ordered item
+3. Third ordered item
+````
+
+- Unordered item
+- Another item
+  - Nested item
+
+1. First ordered item
+2. Second ordered item
+3. Third ordered item
+
+## Task lists
+
+````mdx
+- [x] Finished step
+- [ ] Remaining step
+````
+
+- [x] Finished step
+- [ ] Remaining step
+
+## Blockquotes
+
+````mdx
+> A blockquote is useful for callouts, notes, or emphasized takeaways.
+````
+
+> A blockquote is useful for callouts, notes, or emphasized takeaways.
+
+## Horizontal rule
+
+````mdx
+---
+````
+
+---
+
+## Code blocks
+
+Use fenced code blocks with a language name for syntax highlighting.
+
+### Bash
+
+````mdx
+```bash
+npm install
+npm run dev
+```
+````
+
+```bash
+npm install
+npm run dev
+```
+
+### JavaScript
+
+````mdx
+```js
+export function greet(name) {
+  return `Hello, ${name}`;
+}
+```
+````
+
+```js
+export function greet(name) {
+  return `Hello, ${name}`;
+}
+```
+
+### JSON
+
+````mdx
+```json
+{
+  "title": "Example",
+  "featured": true
+}
+```
+````
+
+```json
+{
+  "title": "Example",
+  "featured": true
+}
+```
+
+## Tables
+
+GitHub-flavored Markdown tables are supported.
+
+````mdx
+| Column | Value | Notes |
+| --- | --- | --- |
+| Name | Portfolio Site | Next.js + MDX |
+| Status | Maintained | Public |
+| Theme | github-dark | Shiki |
+````
+
+| Column | Value | Notes |
+| --- | --- | --- |
+| Name | Portfolio Site | Next.js + MDX |
+| Status | Maintained | Public |
+| Theme | github-dark | Shiki |
+
+## Images
+
+Use a path relative to `public/`.
+
+````mdx
+![Descriptive alt text](/images/projects/portfolio-site/home.png)
+````
+
+You can also use plain HTML/MDX image syntax if you need extra attributes:
+
+````mdx
+<img
+  src="/images/projects/portfolio-site/home.png"
+  alt="Descriptive alt text"
+  width="1200"
+  height="630"
+/>
+````
+
+## Line breaks
+
+Use a blank line for a new paragraph.  
+Use two trailing spaces if you want a manual line break inside the same paragraph.
+
+````mdx
+First line with a manual break.  
+Second line in the same paragraph.
+
+New paragraph after a blank line.
+````
+
+## Raw HTML / MDX
+
+Basic HTML works inside MDX when you need it.
+
+````mdx
+<div>
+  <strong>Inline HTML works inside MDX.</strong>
+</div>
+````
+
+<div>
+  <strong>Inline HTML works inside MDX.</strong>
+</div>
+
+## Frontmatter reminder
+
+Posts usually start like this:
+
+````mdx
+---
+title: "Post Title"
+slug: "post-slug"
+summary: "One sentence: what the reader gets."
+visibility: "public"
+pinned: false
+topics: []
+date: "YYYY-MM-DD"
+evergreen: true
+---
+````
+
+## Notes
+
+- Fenced code blocks are highlighted automatically when you add a language after the opening backticks.
+- Inline code, blockquotes, tables, lists, links, and images are all styled by the site's MDX component and global CSS setup.
+- Advanced `rehype-pretty-code` metadata like line highlighting or code titles is not currently customized in this repo, so stick to standard fenced blocks unless you add that support first.

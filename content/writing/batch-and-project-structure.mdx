@@ -1,34 +1,101 @@
 ---
-title: "Batch Scripting and Project Structure"
-slug: "batch-scripting-and-project-structure"
+title: "Modern Projects, Fossilized DNA"
+slug: "modern-projects-fossilized-dna"
 summary: "A recounting of my foray into batch scripting and the questions about project structure it arose."
-visibility: "private"   # public | unlisted | private
+visibility: "public"   # public | unlisted | private
 pinned: false
 topics: ["batch", "scripting", "project structure", "folder structure", "project layout", "fun stuff"]
 date: "2026-02-15"
 evergreen: true
 hero:
-  image: ""
-  alt: ""
+  image: "/images/writing/modern-projects-fossilized-dna/newtoy.jpg"
+  alt: "newtoy.cmd opened in Visual Studio Code."
 ---
 
+# Modern Projects, Fossilized DNA
+
+As an optimization-obsessed tinkerer, I was recently thinking about my personal workflows. One of my biggest personal points of friction is deciding
+a project structure. I try to decide what's best based on the projects requirements, but I have a tendency to take too much time trying
+to find the perfect solution. Additionally, there's always common overlap in the boilerplate file structure, which lead me to a simple idea. One command
+to handle all the common overlapping boilerplate for all the different languages and frameworks I use. What started as a utility quest for a project directory 
+builder turned into an archaeological dig into 1980s automation.
+
+```batch
+IF /I "%~1" == "" GOTO :USAGE
+IF /I "%~1" == "help" GOTO :USAGE
+
+REM Python
+IF /I "%~2"=="--python" (
+
+	if exist "%~1\" (
+  		echo ERROR: Folder "%~1" already exists.
+  		exit /b 1
+	)
+
+	md "%~1"
+	pushd "%~1"
+	md "docs" "src" "tests"
+	echo # %~1 > "README.md"
+	type nul > "LICENSE"
+	popd
+	echo [+] Created Python project folder: "%1"
+	exit /b 0
+)
+```
+
+> A snippet from the `newtoy` batch script.
+
+# Batch's Quirks
+
+Batch is essentially the fossilized DNA of MS-DOS, dating back to the early 80s. While it certainly shows its age, there is a strange elegance in how it handles the basics once you get past the archaic syntax.
+
+## The REM Mystery
+The most visible quirk is the `REM` command. Short for "Remark," this is a holdover from early programming languages like BASIC. Unlike modern languages that use symbols (like `#` or `//`), Batch treats comments as a command that tells the interpreter to ignore the rest of the line.
+
+```batch
+REM This is a comment. 
+REM It stands for "Remark" and is a literal command to the shell.
+REM Further research into why we didn't get a shorthand symbol is warranted.
+```
+
+## Surprisingly Elegant Argument Processing
+
+One thing that caught me off guard was how simple it is to process arguments. Using `%~1` and `%~2` allows you to grab inputs and even strip surrounding quotes automatically—which is arguably more straightforward than some modern boilerplate.
+
+```batch
+:: Checking for the --python flag in the second argument (%~2)
+IF /I "%~2"=="--python" (
+    md "%~1"
+    pushd "%~1"
+    md "docs" "src" "tests"
+    popd
+    echo [+] Created Python project folder: "%~1"
+)
+```
+## Non-Traditional Function Definitions
+Defining "functions" in Batch feels different than what I’m used to, but it has a pragmatic charm. You essentially use labels (indicated by a colon) and `exit /b` to return control, making it easy to create reusable blocks like a usage guide
+
+```batch
+:USAGE
+echo.
+echo Usage: newtoy [project_name] --[project_type]
+echo Example: newtoy cool_project --python
+exit /b 0
+```
+
+## The Evolution of Structure
+
+The real value of this "archaeological" foray wasn't just the automation itself, but the standardization it forced me to confront.
+
+Before this, I didn't have a pre-defined folder or file structure for my projects. In the process of building `newtoy`, I had to research what a "good" project actually looks like. While I started with Python, I quickly discovered the debate between flat layouts and src layouts.
+
+I’ve landed on src-based layouts as my preference for now, so I’ve baked that logic directly into the script.
+
+This script serves as a living document of my "known good" project state. As my preferences change or I pick up new languages, the automation will evolve with me.
+Additonally, It’s a reminder that automation doesn't always require the latest shiny framework. Sometimes, reaching for a 40-year-old tool is the fastest way to remove current friction and establish a repeatable workflow.
+
+I’ll be adding more project types to the repo as the need arises. For now, I’m just happy to have one less "manual" step between an idea and the first line of code.
+
+
+
 Repo: **[bju12290/cmd-tools](https://github.com/bju12290/cmd-tools)**
-
-# What I wanted?
-- A project directory builder, basically a way to offload making project folders, Readme files, licenses, setup stuff. One command, one project name, one project type flag.
-- Usage I landed on: newtoy cool_project_name --python
-
-# What did I learn?
-
-- Brief batch history
-    - Fossilized DNA of DOS
-    - Started in the early 80s with MS-DOS as a way to automate sequences of commands. Shows its age.
-
-- Some basics about batch scripting syntax
-    - The strange REM comment format - Why does this exist? Further research warranted.
-    - Processing arguments - really elegant, like way easier than I expected
-    - Function definition - different than what I'm used to but not bad, kind of elegant
-
-- Realized I don't have a pre-defined folder/file structure for projects, and I wasn't sure what the best approach was.
-    - Started with python, discovered both flat layouts and src layouts. Prefer src based layouts so I added that to my batch scripts for now.
-    - Will be adding more later as I feel I have a need for them.
