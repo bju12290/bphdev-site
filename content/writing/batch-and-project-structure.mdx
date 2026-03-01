@@ -1,7 +1,7 @@
 ---
 title: "Modern Projects, Fossilized DNA"
 slug: "modern-projects-fossilized-dna"
-summary: "A recounting of my foray into batch scripting and the questions about project structure it arose."
+summary: "A recounting of my foray into batch scripting and the questions about project structure it raised."
 visibility: "public"   # public | unlisted | private
 pinned: false
 topics: ["batch", "scripting", "project structure", "folder structure", "project layout", "fun stuff"]
@@ -15,8 +15,8 @@ hero:
 # Modern Projects, Fossilized DNA
 
 As an optimization-obsessed tinkerer, I was recently thinking about my personal workflows. One of my biggest personal points of friction is deciding
-a project structure. I try to decide what's best based on the projects requirements, but I have a tendency to take too much time trying
-to find the perfect solution. Additionally, there's always common overlap in the boilerplate file structure, which lead me to a simple idea. One command
+a project structure. I try to decide what's best based on the project's requirements, but I have a tendency to take too much time trying
+to find the perfect solution. Additionally, there's always common overlap in the boilerplate file structure, which led me to a simple idea. One command
 to handle all the common overlapping boilerplate for all the different languages and frameworks I use. What started as a utility quest for a project directory 
 builder turned into an archaeological dig into 1980s automation.
 
@@ -38,7 +38,7 @@ IF /I "%~2"=="--python" (
 	echo # %~1 > "README.md"
 	type nul > "LICENSE"
 	popd
-	echo [+] Created Python project folder: "%1"
+	echo [+] Created Python project folder: "~%1"
 	exit /b 0
 )
 ```
@@ -55,7 +55,7 @@ The most visible quirk is the `REM` command. Short for "Remark," this is a holdo
 ```batch
 REM This is a comment. 
 REM It stands for "Remark" and is a literal command to the shell.
-REM Further research into why we didn't get a shorthand symbol is warranted.
+:: <-- Double colons is actually a common shorthand for REM, but it's technically a "broken label" that developers use as a hacky shorthand symbol.
 ```
 
 ## Surprisingly Elegant Argument Processing
@@ -73,7 +73,7 @@ IF /I "%~2"=="--python" (
 )
 ```
 ## Non-Traditional Function Definitions
-Defining "functions" in Batch feels different than what I’m used to, but it has a pragmatic charm. You essentially use labels (indicated by a colon) and `exit /b` to return control, making it easy to create reusable blocks like a usage guide
+Defining "functions" in Batch feels different than what I’m used to, but it has a pragmatic charm. You essentially use labels (indicated by a colon) and `exit /b` to return control, making it easy to create reusable blocks like a usage guide.
 
 ```batch
 :USAGE
@@ -92,7 +92,7 @@ Before this, I didn't have a pre-defined folder or file structure for my project
 I’ve landed on src-based layouts as my preference for now, so I’ve baked that logic directly into the script.
 
 This script serves as a living document of my "known good" project state. As my preferences change or I pick up new languages, the automation will evolve with me.
-Additonally, It’s a reminder that automation doesn't always require the latest shiny framework. Sometimes, reaching for a 40-year-old tool is the fastest way to remove current friction and establish a repeatable workflow.
+Additionally, it’s a reminder that automation doesn't always require the latest shiny framework. Sometimes, reaching for a 40-year-old tool is the fastest way to remove current friction and establish a repeatable workflow.
 
 I’ll be adding more project types to the repo as the need arises. For now, I’m just happy to have one less "manual" step between an idea and the first line of code.
 
