@@ -126,7 +126,7 @@ export default function WorkflowAutomationPage() {
   const steps = [
     "You send the workflow.",
     "I confirm whether it is a good fit.",
-    "We agree on the deliverable, price, and definition of done.",
+    "We agree on the deliverable, price, and what the finished workflow should do.",
     "I build the first version.",
     "You test it with real examples.",
     "I handle fixes and handoff notes.",
@@ -224,10 +224,6 @@ export default function WorkflowAutomationPage() {
             ))}
           </div>
 
-          <p className="max-w-3xl text-zinc-400 leading-7">
-            Best when the workflow already exists and the goal is to make it
-            faster, cleaner, or more reliable.
-          </p>
         </Section>
 
         <Section
@@ -263,7 +259,7 @@ export default function WorkflowAutomationPage() {
 
         <Section
           id="scope-and-pricing"
-          eyebrow="How It Works And Pricing"
+          eyebrow="Process and pricing"
           title="Simple scope, clear handoff."
           className="border-t border-zinc-800/60 pt-12 sm:pt-14"
         >
@@ -300,10 +296,17 @@ export default function WorkflowAutomationPage() {
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-zinc-100">Included:</p>
                   <ul className="space-y-2 text-sm leading-6 text-zinc-300">
-                    <li>- working first version</li>
-                    <li>- short walkthrough</li>
-                    <li>- handoff notes</li>
-                    <li>- 7 days of fixes after delivery</li>
+                    {[
+                      "working first version",
+                      "short walkthrough",
+                      "handoff notes",
+                      "7 days of fixes after delivery",
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-3">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-500" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
 
@@ -330,11 +333,18 @@ export default function WorkflowAutomationPage() {
               <div className="space-y-4">
                 <p className="text-sm font-medium text-zinc-100">Include:</p>
                 <ul className="space-y-3 text-sm leading-6 text-zinc-300">
-                  <li>- what you do manually</li>
-                  <li>- how often it happens</li>
-                  <li>- what tools, files, or systems are involved</li>
-                  <li>- what the final output should look like</li>
-                  <li>- roughly how long it currently takes</li>
+                  {[
+                    "what you do manually",
+                    "how often it happens",
+                    "what tools, files, or systems are involved",
+                    "what the final output should look like",
+                    "roughly how long it currently takes",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-500" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
