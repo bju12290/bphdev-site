@@ -19,6 +19,7 @@ export function GET() {
     { path: "/", priority: "1.0" },
     { path: "/projects", priority: "0.8" },
     { path: "/writing", priority: "0.8" },
+    { path: "/workflow-automation", priority: "0.8" },
   ];
 
   const projects = getProjects()
