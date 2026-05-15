@@ -2,6 +2,68 @@
 
 import { useEffect, useRef, useState } from "react";
 
+const VIEWBOX_WIDTH = 1200;
+const VIEWBOX_HEIGHT = 800;
+const GOO_CIRCLE_COUNT = 7;
+const TEXT_COLUMNS = 64;
+const TEXT_ROWS = 38;
+const TEXT_GLYPHS = [".", ":", "*", "o", "O", "#", "@"]; // Placeholder ramp until the final symbol direction is chosen.
+const CHEAT_SEQUENCE = [
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowDown",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowUp",
+];
+const CHEAT_SEQUENCE_TIMEOUT_MS = 1800;
+
+const FALLBACK_TEMPLATES = [
+  { x: [18, 34], y: [18, 34], size: [700, 920], driftX: [18, 28], driftY: [12, 22], speed: [0.08, 0.12] },
+  { x: [64, 82], y: [20, 38], size: [680, 900], driftX: [16, 26], driftY: [12, 24], speed: [0.08, 0.11] },
+  { x: [44, 58], y: [54, 68], size: [920, 1140], driftX: [14, 22], driftY: [10, 18], speed: [0.07, 0.10] },
+  { x: [24, 42], y: [64, 82], size: [620, 820], driftX: [14, 24], driftY: [10, 18], speed: [0.08, 0.11] },
+  { x: [60, 80], y: [56, 78], size: [560, 760], driftX: [12, 20], driftY: [8, 16], speed: [0.09, 0.12] },
+];
+
+const DEFAULT_FALLBACK_BLOBS = [
+  { x: 26, y: 28, size: 810, driftX: 22, driftY: 16, speed: 0.1, phase: 0.5 },
+  { x: 72, y: 30, size: 780, driftX: 20, driftY: 18, speed: 0.09, phase: 1.8 },
+  { x: 51, y: 60, size: 1030, driftX: 17, driftY: 13, speed: 0.08, phase: 2.9 },
+  { x: 33, y: 73, size: 710, driftX: 18, driftY: 12, speed: 0.1, phase: 4.0 },
+];
+
+const GOO_MOTION_SEEDS = Array.from({ length: GOO_CIRCLE_COUNT }, (_, i) => {
+  const x0 = 0.15 + (i / GOO_CIRCLE_COUNT) * 0.75;
+  const y0 = 0.2 + ((i % 3) / 3) * 0.55;
+
+  return {
+    x0,
+    y0,
+    r0: 120 + (i % 4) * 45,
+    sx: 0.06 + (i % 3) * 0.02,
+    sy: 0.05 + (i % 4) * 0.02,
+    sp: 0.35 + i * 0.07,
+    px: i * 1.7,
+    py: i * 2.3,
+  };
+});
+
+const TEXT_CELL_LAYOUT = Array.from({ length: TEXT_ROWS * TEXT_COLUMNS }, (_, index) => {
+  const column = index % TEXT_COLUMNS;
+  const row = Math.floor(index / TEXT_COLUMNS);
+  const cellWidth = VIEWBOX_WIDTH / TEXT_COLUMNS;
+  const cellHeight = VIEWBOX_HEIGHT / TEXT_ROWS;
+
+  return {
+    index,
+    x: (column + 0.5) * cellWidth,
+    y: (row + 0.5) * cellHeight,
+  };
+});
+
 function prefersReducedMotion() {
   if (typeof window === "undefined") return true;
   return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
@@ -44,21 +106,6 @@ function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
-const FALLBACK_TEMPLATES = [
-  { x: [18, 34], y: [18, 34], size: [700, 920], driftX: [18, 28], driftY: [12, 22], speed: [0.08, 0.12] },
-  { x: [64, 82], y: [20, 38], size: [680, 900], driftX: [16, 26], driftY: [12, 24], speed: [0.08, 0.11] },
-  { x: [44, 58], y: [54, 68], size: [920, 1140], driftX: [14, 22], driftY: [10, 18], speed: [0.07, 0.10] },
-  { x: [24, 42], y: [64, 82], size: [620, 820], driftX: [14, 24], driftY: [10, 18], speed: [0.08, 0.11] },
-  { x: [60, 80], y: [56, 78], size: [560, 760], driftX: [12, 20], driftY: [8, 16], speed: [0.09, 0.12] },
-];
-
-const DEFAULT_FALLBACK_BLOBS = [
-  { x: 26, y: 28, size: 810, driftX: 22, driftY: 16, speed: 0.10, phase: 0.5 },
-  { x: 72, y: 30, size: 780, driftX: 20, driftY: 18, speed: 0.09, phase: 1.8 },
-  { x: 51, y: 60, size: 1030, driftX: 17, driftY: 13, speed: 0.08, phase: 2.9 },
-  { x: 33, y: 73, size: 710, driftX: 18, driftY: 12, speed: 0.10, phase: 4.0 },
-];
-
 function createFallbackBlobs() {
   const templates = [...FALLBACK_TEMPLATES];
   const count = Math.random() > 0.45 ? 5 : 4;
@@ -85,10 +132,52 @@ function getBlobGradient(rgbBlobs) {
   return "radial-gradient(circle at 50% 50%, hsl(var(--fallback-hue) 100% 58% / 0.18) 0%, hsl(var(--fallback-hue) 100% 58% / 0.14) 18%, hsl(var(--fallback-hue) 100% 58% / 0.10) 36%, hsl(var(--fallback-hue) 100% 58% / 0.055) 56%, hsl(var(--fallback-hue) 100% 58% / 0.022) 72%, hsl(var(--fallback-hue) 100% 58% / 0.006) 84%, transparent 96%)";
 }
 
-const GOO_CIRCLE_COUNT = 7;
+function calcIntensity(scrollY) {
+  const progress = Math.min(scrollY / 900, 1);
+  const intensity = 1 - progress * 0.85;
+  return { progress, intensity };
+}
+
+function getGooCircles(timeMs, scrollY) {
+  const TIME_SCALE = 0.35;
+  const HERO_MOTION_BOOST = 0.65;
+  const t = (timeMs / 1000) * TIME_SCALE;
+  const { progress, intensity } = calcIntensity(scrollY);
+  const motionFactor = HERO_MOTION_BOOST + (1 - HERO_MOTION_BOOST) * (1 - intensity);
+
+  return GOO_MOTION_SEEDS.map((seed) => {
+    const x =
+      VIEWBOX_WIDTH *
+      (seed.x0 +
+        seed.sx * motionFactor * Math.sin(t * seed.sp + seed.px) +
+        0.015 * motionFactor * Math.sin(t * 0.6 + seed.px * 0.3));
+
+    const y =
+      VIEWBOX_HEIGHT *
+      (seed.y0 +
+        seed.sy * intensity * motionFactor * Math.cos(t * (seed.sp * 0.9) + seed.py) +
+        0.1 * progress);
+
+    const r =
+      seed.r0 *
+      (0.85 + 0.15 * Math.sin(t * (seed.sp * 1.1) + seed.py)) *
+      (0.65 + 0.35 * intensity);
+
+    return { x, y, r };
+  });
+}
+
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+
+  const tagName = target.tagName;
+  return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+}
 
 export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } = {}) {
   const [mode, setMode] = useState("fallback");
+  const [variant, setVariant] = useState("default");
   const [fallbackSeeds, setFallbackSeeds] = useState(DEFAULT_FALLBACK_BLOBS);
 
   const rootRef = useRef(null);
@@ -101,46 +190,106 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
   const fallbackLayerRef = useRef(null);
   const fallbackBlobEls = useRef([]);
 
+  const textSvgRef = useRef(null);
+  const textCellEls = useRef([]);
+
   useEffect(() => {
     setMode(pickBackdropMode());
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.backdropMode = mode;
+    const root = document.documentElement;
+    root.dataset.backdropMode = mode;
+    root.dataset.backdropVariant = variant;
 
     return () => {
-      delete document.documentElement.dataset.backdropMode;
+      delete root.dataset.backdropMode;
+      delete root.dataset.backdropVariant;
     };
-  }, [mode]);
+  }, [mode, variant]);
 
   useEffect(() => {
     setFallbackSeeds(createFallbackBlobs());
   }, []);
 
   useEffect(() => {
+    let progress = 0;
+    let timeoutId = 0;
+
+    const resetProgress = () => {
+      progress = 0;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+        timeoutId = 0;
+      }
+    };
+
+    const armTimeout = () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(resetProgress, CHEAT_SEQUENCE_TIMEOUT_MS);
+    };
+
+    const onKeyDown = (event) => {
+      if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
+        resetProgress();
+        return;
+      }
+
+      if (isEditableTarget(event.target)) {
+        resetProgress();
+        return;
+      }
+
+      const expected = CHEAT_SEQUENCE[progress];
+      if (event.code === expected) {
+        progress += 1;
+
+        if (progress === CHEAT_SEQUENCE.length) {
+          setVariant((current) => (current === "text" ? "default" : "text"));
+          resetProgress();
+          return;
+        }
+
+        armTimeout();
+        return;
+      }
+
+      progress = event.code === CHEAT_SEQUENCE[0] ? 1 : 0;
+      if (progress > 0) {
+        armTimeout();
+      } else {
+        resetProgress();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      resetProgress();
+    };
+  }, []);
+
+  useEffect(() => {
     const root = rootRef.current;
     const svg = svgRef.current;
+    const textSvg = textSvgRef.current;
     const circles = circleEls.current.slice(0, GOO_CIRCLE_COUNT);
+    const textCells = textCellEls.current.slice(0, TEXT_CELL_LAYOUT.length);
     const fallbackLayer = fallbackLayerRef.current;
     const fallbackBlobs = fallbackBlobEls.current.slice(0, fallbackSeeds.length);
 
-    const isGoo = mode === "goo";
+    const isTextVariant = variant === "text";
+    const isGoo = mode === "goo" && !isTextVariant;
     const isStatic = mode === "static";
 
     if (isGoo && (!svg || !circles.some(Boolean))) return;
-    if (!isGoo && (!fallbackLayer || !fallbackBlobs.some(Boolean))) return;
+    if (isTextVariant && (!textSvg || !textCells.some(Boolean))) return;
+    if (!isGoo && !isTextVariant && (!fallbackLayer || !fallbackBlobs.some(Boolean))) return;
 
-    const backdropNode = isGoo ? svg : fallbackLayer;
-    const W = 1200;
-    const H = 800;
+    const backdropNode = isTextVariant ? textSvg : isGoo ? svg : fallbackLayer;
+    const baseOpacity = isTextVariant ? (isStatic ? 0.18 : 0.24) : isGoo ? 0.22 : isStatic ? 0.18 : 0.34;
 
-    const calcIntensity = (scrollY) => {
-      const progress = Math.min(scrollY / 900, 1);
-      const intensity = 1 - progress * 0.85;
-      return { progress, intensity };
-    };
-
-    const baseOpacity = isGoo ? 0.22 : isStatic ? 0.18 : 0.34;
     const applyOpacity = (scrollY) => {
       const { intensity } = calcIntensity(scrollY);
       backdropNode.style.opacity = String(baseOpacity * intensity);
@@ -164,13 +313,96 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       root.style.setProperty("--fallback-hue", "345deg");
     }
 
-    if (isGoo) {
-      const TIME_SCALE = 0.35;
-      const HERO_MOTION_BOOST = 0.65;
+    const renderFallback = (timeMs, scrollY) => {
+      const t = timeMs / 1000;
+      const { progress, intensity } = calcIntensity(scrollY);
 
+      if (rgbBlobs && root) {
+        const hue = (345 + timeMs * 0.012) % 360;
+        root.style.setProperty("--fallback-hue", `${hue.toFixed(1)}deg`);
+      }
+
+      for (let i = 0; i < fallbackSeeds.length; i += 1) {
+        const blob = fallbackBlobs[i];
+        const seed = fallbackSeeds[i];
+        if (!blob) continue;
+
+        const dx =
+          seed.driftX * Math.sin(t * seed.speed + seed.phase) +
+          seed.driftX * 0.35 * Math.sin(t * seed.speed * 0.6 + seed.phase * 1.7);
+        const dy =
+          seed.driftY * Math.cos(t * seed.speed * 0.92 + seed.phase) +
+          seed.driftY * 0.28 * Math.sin(t * seed.speed * 0.48 + seed.phase * 1.2) +
+          progress * 22;
+        const scale =
+          1 +
+          intensity * 0.08 +
+          0.025 * Math.sin(t * seed.speed * 1.1 + seed.phase * 0.8);
+
+        blob.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
+      }
+    };
+
+    const renderGoo = (timeMs, scrollY) => {
+      const scene = getGooCircles(timeMs, scrollY);
+
+      for (let i = 0; i < scene.length; i += 1) {
+        const circle = circles[i];
+        const { x, y, r } = scene[i];
+        if (!circle) continue;
+
+        circle.setAttribute("cx", x.toFixed(1));
+        circle.setAttribute("cy", y.toFixed(1));
+        circle.setAttribute("r", r.toFixed(1));
+      }
+    };
+
+    const renderText = (timeMs, scrollY) => {
+      if (rgbBlobs && root) {
+        const hue = (345 + timeMs * 0.012) % 360;
+        root.style.setProperty("--fallback-hue", `${hue.toFixed(1)}deg`);
+      }
+
+      const scene = getGooCircles(timeMs, scrollY);
+
+      for (let i = 0; i < TEXT_CELL_LAYOUT.length; i += 1) {
+        const cell = TEXT_CELL_LAYOUT[i];
+        const textNode = textCells[i];
+        if (!textNode) continue;
+
+        let strength = 0;
+        for (let j = 0; j < scene.length; j += 1) {
+          const circle = scene[j];
+          const dx = (cell.x - circle.x) / circle.r;
+          const dy = (cell.y - circle.y) / circle.r;
+          const distSq = dx * dx + dy * dy;
+
+          if (distSq < 1.6) {
+            strength += Math.max(0, 1 - distSq / 1.6);
+          }
+        }
+
+        const normalized = Math.min(strength * 0.9, 1);
+        if (normalized < 0.08) {
+          textNode.textContent = "";
+          textNode.setAttribute("opacity", "0");
+          continue;
+        }
+
+        const glyphIndex = Math.min(
+          TEXT_GLYPHS.length - 1,
+          Math.floor(normalized * TEXT_GLYPHS.length),
+        );
+        textNode.textContent = TEXT_GLYPHS[glyphIndex];
+        textNode.setAttribute("opacity", (0.18 + normalized * 0.82).toFixed(3));
+        textNode.setAttribute("font-size", (10 + normalized * 6).toFixed(2));
+      }
+    };
+
+    if (isGoo) {
       const updateFilterRes = () => {
-        const viewportWidth = Math.min(window.innerWidth || W, 1600);
-        const viewportHeight = Math.min(window.innerHeight || H, 1200);
+        const viewportWidth = Math.min(window.innerWidth || VIEWBOX_WIDTH, 1600);
+        const viewportHeight = Math.min(window.innerHeight || VIEWBOX_HEIGHT, 1200);
         const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
         const hiWidth = Math.max(360, Math.round(viewportWidth * 0.55 * dpr));
@@ -185,56 +417,6 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       updateFilterRes();
       window.addEventListener("resize", updateFilterRes);
 
-      const seeds = Array.from({ length: GOO_CIRCLE_COUNT }, (_, i) => {
-        const x0 = 0.15 + (i / GOO_CIRCLE_COUNT) * 0.75;
-        const y0 = 0.2 + ((i % 3) / 3) * 0.55;
-        return {
-          x0,
-          y0,
-          r0: 120 + (i % 4) * 45,
-          sx: 0.06 + (i % 3) * 0.02,
-          sy: 0.05 + (i % 4) * 0.02,
-          sp: 0.35 + i * 0.07,
-          px: i * 1.7,
-          py: i * 2.3,
-        };
-      });
-
-      const renderCircles = (timeMs, scrollY) => {
-        const t = (timeMs / 1000) * TIME_SCALE;
-        const { progress, intensity } = calcIntensity(scrollY);
-
-        const motionFactor =
-          HERO_MOTION_BOOST + (1 - HERO_MOTION_BOOST) * (1 - intensity);
-
-        for (let i = 0; i < seeds.length; i += 1) {
-          const circle = circles[i];
-          const s = seeds[i];
-          if (!circle) continue;
-
-          const x =
-            W *
-            (s.x0 +
-              s.sx * motionFactor * Math.sin(t * s.sp + s.px) +
-              0.015 * motionFactor * Math.sin(t * 0.6 + s.px * 0.3));
-
-          const y =
-            H *
-            (s.y0 +
-              s.sy * intensity * motionFactor * Math.cos(t * (s.sp * 0.9) + s.py) +
-              0.1 * progress);
-
-          const r =
-            s.r0 *
-            (0.85 + 0.15 * Math.sin(t * (s.sp * 1.1) + s.py)) *
-            (0.65 + 0.35 * intensity);
-
-          circle.setAttribute("cx", x.toFixed(1));
-          circle.setAttribute("cy", y.toFixed(1));
-          circle.setAttribute("r", r.toFixed(1));
-        }
-      };
-
       let forceLowUntil = 0;
       const onGooScroll = () => {
         scrollYTarget = window.scrollY || 0;
@@ -245,7 +427,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       window.removeEventListener("scroll", onScroll);
       window.addEventListener("scroll", onGooScroll, { passive: true });
 
-      renderCircles(0, scrollYForMotion);
+      renderGoo(0, scrollYForMotion);
 
       let raf = 0;
       let running = false;
@@ -278,19 +460,19 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
         gooGroupRef.current?.setAttribute("filter", `url(#${id})`);
       };
 
-      const setQuality = (q, nowMs) => {
-        if (quality === q) return;
-        quality = q;
+      const setQuality = (nextQuality, nowMs) => {
+        if (quality === nextQuality) return;
+        quality = nextQuality;
         badSince = 0;
 
-        if (q === "HIGH") {
+        if (nextQuality === "HIGH") {
           targetFps = 60;
           setFilter("gooHi");
-        } else if (q === "LOW") {
+        } else if (nextQuality === "LOW") {
           targetFps = 24;
           setFilter("gooLo");
           nextProbeAt = nowMs + PROBE_COOLDOWN_MS;
-        } else if (q === "PROBE") {
+        } else if (nextQuality === "PROBE") {
           targetFps = 60;
           setFilter("gooHi");
           probeEndsAt = nowMs + PROBE_MS;
@@ -377,7 +559,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
           const minDt = 1000 / effectiveTargetFps;
           if (!lastRenderMs || ms - lastRenderMs >= minDt) {
             lastRenderMs = ms;
-            renderCircles(simMs, scrollYForMotion);
+            renderGoo(simMs, scrollYForMotion);
           }
         }
 
@@ -397,7 +579,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
         if (document.visibilityState !== "visible") {
           stop();
         } else {
-          renderCircles(simMs, scrollYForMotion);
+          renderGoo(simMs, scrollYForMotion);
           start();
         }
       };
@@ -413,35 +595,81 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       };
     }
 
-    const renderFallback = (timeMs, scrollY) => {
-      const t = timeMs / 1000;
-      const { progress, intensity } = calcIntensity(scrollY);
+    if (isTextVariant) {
+      renderText(0, scrollYForMotion);
 
-      if (rgbBlobs && root) {
-        const hue = (345 + timeMs * 0.012) % 360;
-        root.style.setProperty("--fallback-hue", `${hue.toFixed(1)}deg`);
+      if (isStatic) {
+        return () => {
+          window.removeEventListener("scroll", onScroll);
+        };
       }
 
-      for (let i = 0; i < fallbackSeeds.length; i += 1) {
-        const blob = fallbackBlobs[i];
-        const seed = fallbackSeeds[i];
-        if (!blob) continue;
+      let raf = 0;
+      let running = false;
+      let lastFrameMs = 0;
+      let lastRenderMs = 0;
+      let simMs = 0;
 
-        const dx =
-          seed.driftX * Math.sin(t * seed.speed + seed.phase) +
-          seed.driftX * 0.35 * Math.sin(t * seed.speed * 0.6 + seed.phase * 1.7);
-        const dy =
-          seed.driftY * Math.cos(t * seed.speed * 0.92 + seed.phase) +
-          seed.driftY * 0.28 * Math.sin(t * seed.speed * 0.48 + seed.phase * 1.2) +
-          progress * 22;
-        const scale =
-          1 +
-          intensity * 0.08 +
-          0.025 * Math.sin(t * seed.speed * 1.1 + seed.phase * 0.8);
+      const stop = () => {
+        running = false;
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+      };
 
-        blob.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
-      }
-    };
+      const tick = (ms) => {
+        if (document.visibilityState !== "visible") {
+          stop();
+          return;
+        }
+
+        const frameDt = lastFrameMs ? ms - lastFrameMs : 16.7;
+        lastFrameMs = ms;
+
+        const clampedDt = Math.min(frameDt, 40);
+        const deltaY = scrollYTarget - scrollYForMotion;
+        if (Math.abs(deltaY) < 0.5) {
+          scrollYForMotion = scrollYTarget;
+        } else {
+          const alpha = 1 - Math.exp(-clampedDt / 170);
+          scrollYForMotion += deltaY * alpha;
+        }
+
+        simMs += clampedDt;
+
+        if (!lastRenderMs || ms - lastRenderMs >= 1000 / 30) {
+          lastRenderMs = ms;
+          renderText(simMs, scrollYForMotion);
+        }
+
+        raf = requestAnimationFrame(tick);
+      };
+
+      const start = () => {
+        if (running) return;
+        running = true;
+        lastFrameMs = 0;
+        lastRenderMs = 0;
+        raf = requestAnimationFrame(tick);
+      };
+
+      const onVisibilityChange = () => {
+        if (document.visibilityState !== "visible") {
+          stop();
+        } else {
+          renderText(simMs, scrollYForMotion);
+          start();
+        }
+      };
+
+      if (document.visibilityState === "visible") start();
+      document.addEventListener("visibilitychange", onVisibilityChange);
+
+      return () => {
+        stop();
+        window.removeEventListener("scroll", onScroll);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      };
+    }
 
     renderFallback(0, scrollYForMotion);
 
@@ -516,11 +744,13 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [fallbackSeeds, mode, rgbBlobs]);
+  }, [fallbackSeeds, mode, rgbBlobs, variant]);
 
-  const animateRgbHue = mode === "goo";
-  const showSvg = mode === "goo";
-  const showFallback = mode !== "goo";
+  const isTextVariant = variant === "text";
+  const animateRgbHue = mode === "goo" || isTextVariant;
+  const showSvg = mode === "goo" && !isTextVariant;
+  const showFallback = mode !== "goo" && !isTextVariant;
+  const showText = isTextVariant;
 
   return (
     <div
@@ -554,7 +784,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
       <div className="absolute inset-0 opacity-80 [background:radial-gradient(1200px_circle_at_50%_35%,transparent_40%,rgba(0,0,0,0.55)_85%)]" />
 
       {showFallback ? (
-        <div ref={fallbackLayerRef} className="absolute inset-0" style={{ opacity: 0.30 }}>
+        <div ref={fallbackLayerRef} className="absolute inset-0" style={{ opacity: 0.3 }}>
           {fallbackSeeds.map((blob, i) => (
             <div
               key={`fb-${i}`}
@@ -589,7 +819,7 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
           <svg
             ref={svgRef}
             className="absolute inset-0 h-full w-full"
-            viewBox="0 0 1200 800"
+            viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
             preserveAspectRatio="xMidYMid slice"
             style={{ opacity: 0.12 }}
             aria-hidden="true"
@@ -663,6 +893,46 @@ export default function FluidBackdrop({ rgbTopGlow = false, rgbBlobs = false } =
 
             <g filter="url(#soft)" opacity="0.12">
               <ellipse cx="600" cy="720" rx="520" ry="240" fill="black" />
+            </g>
+          </svg>
+        </div>
+      ) : null}
+
+      {showText ? (
+        <div
+          className={[
+            "absolute inset-0",
+            rgbBlobs && animateRgbHue ? "rgb-hue [will-change:filter]" : "",
+          ].join(" ")}
+        >
+          <svg
+            ref={textSvgRef}
+            className="absolute inset-0 h-full w-full"
+            viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+            preserveAspectRatio="xMidYMid slice"
+            style={{ opacity: 0.24 }}
+            aria-hidden="true"
+          >
+            <g
+              textAnchor="middle"
+              style={{
+                fill: rgbBlobs ? "hsl(var(--fallback-hue) 100% 68%)" : "rgba(255,255,255,0.92)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 14,
+              }}
+            >
+              {TEXT_CELL_LAYOUT.map((cell) => (
+                <text
+                  key={`txt-${cell.index}`}
+                  ref={(el) => {
+                    textCellEls.current[cell.index] = el;
+                  }}
+                  x={cell.x}
+                  y={cell.y}
+                  dominantBaseline="middle"
+                  opacity="0"
+                />
+              ))}
             </g>
           </svg>
         </div>

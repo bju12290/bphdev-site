@@ -10,6 +10,5 @@ out/
 !.vscode/extensions.json
 !.vscode/settings.json
 
-# Personal/Agent Notes
-
-WORKFLOWAUTOMATIONSPRINT.MD
+# Local design notes
+LAVALAMP_TEXT_EASTER_EGG.md
