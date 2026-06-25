@@ -1,6 +1,7 @@
 import { Link } from "next-view-transitions"
 import { getPosts } from "../../lib/content";
 import Badge from "../../components/Badge";
+import NewsletterSignup from "../../components/NewsletterSignup";
 
 export const metadata = {
   title: "Writing",
@@ -67,6 +68,8 @@ export default function WritingIndex() {
           </Link>
         ))}
       </div>
+      <div className="h-px bg-zinc-800/60" />
+      <NewsletterSignup />
     </main>
   );
 }

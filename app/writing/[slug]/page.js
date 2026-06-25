@@ -6,6 +6,7 @@ import { mdxComponents } from "../../../components/mdx-components";
 import rehypePrettyCode from "rehype-pretty-code";
 import Badge from "../../../components/Badge";
 import HeroImage from "../../../components/HeroImage";
+import NewsletterSignup from "../../../components/NewsletterSignup";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -114,6 +115,8 @@ export default async function PostPage({ params }) {
         <article className="mdx rounded-2xl border border-zinc-800 bg-zinc-950/30 p-7 sm:p-8">
           {content}
         </article>
+
+        <NewsletterSignup />
       </div>
     </main>
   );

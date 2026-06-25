@@ -4,7 +4,7 @@
   "description": "This repo currently contains the content model + templates for: - Projects (case studies) - Writing (evergreen notes)",
   "main": "index.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start"
   },
