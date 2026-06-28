@@ -1,0 +1,67 @@
+---
+title: "The Data Moves, The Code Doesn't: Building a KH3 Trainer in Python"
+slug: "kh3-trainer-code-injection"
+summary: "Four failed attempts to pin down a moving HP value in Kingdom Hearts 3, and the pivot that worked: stop chasing the data, hijack the code that writes it."
+visibility: "public" # public | unlisted | private
+pinned: true
+topics: ["python", "reverse engineering", "game hacking", "memory editing", "code injection", "pymem", "kingdom hearts"]
+date: "2026-06-27"
+evergreen: true
+hero:
+  image: "/images/writing/kh3-hp-adventure/sora_stats_screen.png"
+  alt: "Kingdom Hearts 3 stats screen showing Sora's HP at 999, far above any legitimate in-game value"
+---
+
+
+I recently started tinkering with making cheats for video games, but before you get mad at me, I don’t mean scumbag cheats, I mean trainers for singleplayer games. No multiplayer, no online, no leaderboards, and no ruining anyone else’s day. Reason being: I’m fighting the most unfair bosses in maybe the entire Kingdom Hearts franchise, the KH3 Data Org bosses (on Critical Mode, with max PRO codes), and I am losing my mind fighting already-mastered phases, just to see 3 seconds of the next phase *just* to be one-shot. I need a more efficient way to practice: invincibility so I can spend more time seeing unlearned phases, or else I’ll spend the rest of my summer on like 13 bosses, and I say no. I did find software that'll do this for me, but I'm not a big fan of the UI, they want to charge me, and honestly this stuff is just fun to me anyway, so I’d rather see what I can do on my own.
+
+## Chasing the Data
+
+I started with Munny, Kingdom Hearts’ in-game currency. I figured this would be an easier starting point than HP, and after a first attempt it seemed I was right. I scanned for a byte signature to find candidate addresses, and noticed something convenient: the real Munny address always ended in the same 16 bits across restarts. I used that to relocate the value and write to Munny even after cold-restarting, which seemed to be a valid solution. In hindsight I was definitely wrong. There’s a lot more going on under the hood of this game.
+	
+After wrongfully calling Munny complete, I moved on to HP, where I noticed a similar pattern. HP's address also ended in the same 16 bits across restarts. My initial solution was the same as before: target that signature, isolate it by the address tail, and write. This worked, but only in the instance of a cold restart. Die, load a different save, warp, or do anything else to change the game’s state and poof: the struct gets reallocated and the address tail I was keying on is gone. I no longer have a matching candidate, and worse, this will definitely write values to some random part of the game that could cause a crash. Considering the solution for Munny is relying on the same logic, it’s safe to assume that’s borked and future me has a new chore, but regardless, we continue.
+
+From here, I added a value filter, basically filtering out candidates to only pick values that make sense as HP. This looked like it did the trick on the first save I tried. I had just one value that was definitely HP. But then I loaded a save with a food buff, and saw two valid values for HP. One with the food buff, and one without. Both are valid HP values, so they’ll pass any filter I write. With no obvious way to distinguish the two, this path was dead. Next, I tried using an array-of-bytes signature to identify the real HP. Look at the byte pattern around the HP, and find a consistent fingerprint we can use to identify the real value. Guess what? This matched a look-alike. At this point it felt personal: two methods to filter out candidates both leaving me with a phantom second match. As a last-ditch effort I cracked open Cheat Engine to see if a pointer scan backed up what I was experiencing. After multiple attempts at culling, the scan still returned around 1000 matches. Running it across restarts and reloads to eliminate false values was doing virtually nothing. The scanner effectively proved there’s not a single stable pointer chain to be found. This is because UE4 reallocates objects dynamically, a fun engine quirk that makes my life more interesting.
+
+## Hijacking the Write
+
+At this point, certain the game had no stable data path for me to access HP, I decided to pivot. The data moves, but y’know what doesn’t? The code. Instead of focusing on where the data’s being stored, I decided to look at what’s writing to it. I grabbed the live HP address in Cheat Engine and scoped out the situation. What I found was something like `mov [rbx+offset], value`, and I made that the new target. `rbx` is holding the base of the live HP struct, so wherever the game just moved it, this instruction is pointing right at it. I’d overwrite the instruction at its fixed code site, bounce it out to my own code written somewhere in the game’s free memory, and then send it back from whence it came. This approach seemed great until I realized I’m looking at *every single character’s HP write*. That means enemies, Sora, party members, and whatever else has a health bar, so hijacking just based off of the instruction would cause everything to be invincible, completely defeating the purpose of the tool.
+
+```asm
+mov [rbx+0x5FC], r8d
+```
+> The HP store instruction. rbx holds the live struct base, so wherever the game just moved Sora, this points right at it.
+
+## Isolating Sora
+
+Naturally, my next target was finding some way to consistently identify Sora and ensure we only hijack his HP write. This is where C++ does me a solid. Every actor’s struct starts with a pointer to a vtable, a table of function pointers that every object of the same class shares. Put simply, this’ll do exactly what we need it to: serve as a stable way to identify writes to only Sora’s HP. By setting up a watchdog on the HP write instruction, I was able to identify Sora’s vtable value, `0x696B930`, and use it to set up a filter that ensures the injected code only runs when Sora is the target for the HP write. This ended up being the correct solution. Across all transitions, I was able to consistently target Sora’s HP. However, this was done in Cheat Engine, and I’d really like a Python port.
+
+```asm
+cmp dword [rbx], 0x696B930   ; is this Sora's vtable?
+jne  do_store                ; not Sora - let the write through untouched
+; Sora-only code runs here
+do_store:
+mov  [rbx+0x5FC], r8d        ; original instruction
+```
+> The vtable pointer at [rbx] is the same for every Sora and different for everything else. Gate on it and only our code — between the branch and the store — ever sees him.
+
+## Porting to Python
+
+Porting the Cheat Engine AOB injection over to Python was a bit complicated, as Cheat Engine handles a lot of the complex stuff out of the box. Specifically, I needed to recreate Cheat Engine’s cave allocation and trampolining. In other words, I needed to overwrite an instruction in the game and tell it to go somewhere else to run my code (the trampoline jump). This code needs to be within 2GB of the location I overwrote, so I needed to find an open spot in memory within this range (the cave). Lastly, after the game runs my injected code, it has to return right back to where it started (falling back down from the trampoline jump). This ended up being a majority of the work, but it laid some solid, reusable groundwork for future cheats and games.
+
+```python
+disp = cave_addr - (hook_addr + 5)
+if not (-0x80000000 <= disp <= 0x7FFFFFFF):
+    raise ValueError("cave out of rel32 range - allocate nearer or jump absolute")
+jmp = b"\xE9" + disp.to_bytes(4, "little", signed=True)
+```
+
+> A jmp rel32 encodes the distance as a signed 32-bit offset from the end of the jump. Land your cave more than 2GB out and it doesn't fit.
+
+## Writing as the Game, Not After It
+
+Finally, I started working on freezing the HP value. I started with a naive implementation using polling, which technically leaves room for a fast enough combo to still kill you. When fighting bosses that are known to do twenty-eight-move combos in 3-second windows it’s probably best to not leave margin for error. So I shifted from a polling strategy to co-opting the HP write. My cave already runs at the game’s own HP-store instruction, so instead of correcting HP after the game's already lowered it, the cave just overwrites the value the game is about to store to 9999. The low value never lands, and there’s no window for Sora’s death because we don’t write after the game, we write as the game. I’m now successfully facetanking Data Org bosses on Crit Mode with all PRO codes enabled, and I’ll have every single one of these phases mastered well before the end of the summer. PRO Code merit rank A, here we come.
+
+<video autoPlay loop muted playsInline>
+  <source src="/videos/writing/kh3-hp-adventure/tanking_larxene.mp4" type="video/mp4" />
+</video>
