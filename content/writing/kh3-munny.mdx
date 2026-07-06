@@ -1,0 +1,77 @@
+---
+title: "Behavior Determines the Resolution: Building a KH3 Trainer in Python"
+slug: "kh3-trainer-pointer-scanning"
+summary: "Matching WeMod's Munny cheat meant abandoning code hooks for a static pointer chain, and discovering the value's memory behavior dictates the tool."
+visibility: "public" # public | unlisted | private
+pinned: true
+topics: ["python", "reverse engineering", "game hacking", "pointer scanning", "pymem", "kingdom hearts"]
+date: "2026-07-04"
+evergreen: true
+hero:
+  image: "/images/writing/kh3-munny/max_munny.png"
+  alt: "Kingdom Hearts 3 menu screen showing Sora's Munny at the max value 99,999."
+---
+
+With a finished [Kingdom Hearts 3 HP Freeze Cheat](https://www.bphdev.com/writing/kh3-trainer-code-injection), it’s time to circle back to Munny. Where I left off: filtering by an address-suffix scan that specifically looked for `(addr & 0xFFFF) == 0x8674` on the address tail. The HP cheat made it clear this wasn’t a stable method and typically only worked on restarts. Any other transition would cause the game state to change and my filter would no longer match. However, Munny behaves differently than HP: its address tail is save-specific. This meant that warping or dying didn’t cause the Munny address tail to shift, but changing saves did. All in all, the Munny address tail is actually more stable than HP, but address-suffix filtering still isn’t a valid path.
+
+## Instruction hooks and their UX problem.
+
+Knowing for certain that filtering isn’t the solution, I shifted targets to write and access instructions. After poking around in Cheat Engine I discovered the transaction read operation, `mov eax,[rax+0x7E04]`. This worked, but needed a purchase or sale to warm the hook before any read or write was possible, which is awful UX. I found a more easily accessible trigger, via the menu, where opening it would warm the hook, but I still don’t love this solution. I feel any user action to warm the hook is unnecessary and inconvenient, especially considering that WeMod’s cheat is perfectly capable of writing to Munny without any warming actions. 
+
+```asm
+mov eax,[rax+0x7E04]
+```
+> Munny read, only fires when the game explicitly accesses the wallet. A user would need to buy or sell an item so it's a lousy hook.
+
+## How does WeMod do it?
+
+So I took some more time to think about how WeMod’s Munny cheat most likely works. They’re able to write to Munny eagerly, with no player action, which means it must resolve through a static chain into the wallet rather than waiting on the game to execute an instruction. So a static chain exists somewhere, but when I ran a CE pointer scan nothing surfaced. This led me to my next train of thought: why wasn’t my pointer scan able to find anything?
+
+## Why the scan found nothing
+
+The issue was that the CE scan targeted the Munny value address, not the wallet struct base, so the final +0x7E04 hop exceeded CE’s default max-offset threshold. Cheat Engine has a ceiling on how large each hop’s offset can be, and I was overshooting it, so the real chain was never in the search space. The fix: point the scan directly at the base (munny - 0x7E04) and let the terminal offset be the known +0x7E04.
+
+## Porting the scan to Python
+
+After getting a bit frustrated with Cheat Engine’s UI, I decided to port the scan over to a python script just to keep things where I’m more comfortable. I created `ptr_chain_scan.py`, which is a two-phase script that first runs a scan that walks up from the live base through writable memory to any module-static root, saving each candidate on the way (as module, rva, and offsets). Phase two runs a verification step, which re-resolves every saved chain against the new base after a cold restart, keeping only the survivors.
+
+I started the scan with a `0x100` up-window. This means the script only accepts parent relationships where the offset is less than or equal to `0x100`, but this wasn’t a large enough search space to find anything useful. I bumped the window up to `0x1000` which covers more ground while ensuring the number of results doesn’t explode. Despite the window increasing 16-fold, random memory usually doesn’t accidentally look like a valid pointer parent, so the number of valid results stayed manageable. One caveat: the scanner initially only targeted the root module `KINGDOM HEARTS III.exe`. A static pointer chain could very well live inside the base exe, some runtime DLL, a CRT DLL, an engine DLL, or a middleware DLL. So instead of assuming the static root lived inside the main game executable, I let the scanner consider any loaded module as a possible stable anchor. 
+
+Next, I needed to ensure the scanner wouldn’t run forever and output garbage. A pointer chain has depth. The deeper you let a scan go, the more possible parents it finds. At each layer, each candidate may have hundreds of possible parents, so as the depth gets larger, the number of possible candidates increases exponentially. There are two problems with this, and the obvious one is speed: a larger search space takes longer to go through. The bigger problem, however, is false positives. The deeper I go, the more likely I am to find coincidental chains. I don’t want the scanner to “win” by finding some absurdly long chain that only works incidentally, so I bound the search space to a `MAX_DEPTH` of 2, which fits the kind of chain that actually makes sense for a stable game structure like a wallet.
+
+```python
+MODE           = "verify"        # "scan", then after a cold restart "verify"
+VALUE_ADDR_HEX = "117CCB18674"   # the VALUE address straight from CE. Update each run.
+
+WINDOW    = 0x1000               # max offset per hop
+MAX_DEPTH = 2
+```
+> Config constants that drive the search space. A larger WINDOW offset widens each hop and a larger MAX_DEPTH lengthens the chain.
+
+## What survived the restarts
+
+With `ptr_chain_scan.py` complete, all that was left to do was to run it. After multiple rounds of cold restarts and verifying, I was left with three surviving chains, all rooted in `KINGDOM HEARTS III.exe`, and all three landed on `+0x870 -> base -> +0x7E04`. Two roots, `0x9DE3B68, 0x9DE3B98`, sit `0x30` apart which leads me to believe these are adjacent fields in one global. The third, `0x9DE7378`, is a separate global reaching the same struct through some other route. All three chains survived three more cold restarts, which likely means these are real aliases into the same player/save structure. 
+
+With three survivors, I decided the most robust solution would be to use all three aliases deliberately, rather than culling to one. If a future build shifts one global, the other two still resolve and the disagreement is detectable rather than silently ignored. The cheat resolves with pure reads on attach, there’s no hook, no cave, no warm. No action the user needs to take for the tool to work. A quick smoke test confirmed that all three agreed on the base, `+0x7E04` held perfectly, and a reversible write landed on the authoritative field. 
+
+```plaintext
+[+] attached — module 0x7FF6D63D0000
+    (in-world, nothing opened — testing eager resolution)
+[1] eager resolve: OK
+[2] per-chain bases:
+    ["KINGDOM HEARTS III.exe"+0x9DE7378] +0x158 +0x870  ->  0x117CCB10870
+    ["KINGDOM HEARTS III.exe"+0x9DE3B68] +0x60 +0x870  ->  0x117CCB10870
+    ["KINGDOM HEARTS III.exe"+0x9DE3B98] +0xE30 +0x870  ->  0x117CCB10870
+    consensus base = 0x117CCB10870   [all agree]
+[3] munny @ 0x117CCB18674 = 16394
+    addr - base = 0x7E04 (expect 0x7E04)
+    -> does 16394 match your on-screen munny? OK
+[4] run reversible write test (+7 then restore)? (y/N): y
+    16394 -> wrote 16401 -> read 16401  [WRITE OK]
+    restored -> 16394  [restored OK]
+[+] smoke test done
+```
+> Smoke-test output that successfully resolves all three chains to one shared base and triggers a test read and write to ensure the cheat works end to end.
+
+This little adventure showed me something I’ll be sure to take forward: the right resolution strategy should be determined by how the value behaves in memory. ExecHook capture for values that relocate mid-session (like HP), and static-pointer chains for session-stable values (like Munny). So on top of being able to face-tank any enemy attack, I’m now the richest person in the Kingdom Hearts universe too.
+	
