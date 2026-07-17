@@ -1,0 +1,48 @@
+---
+title: "One Byte Tells Friend From Foe: Building a KH3 Trainer in Python"
+slug: "kh3-trainer-actor-gating"
+summary: "Sora's attack stat was display-only, so the damage multiplier reused the HP write hook - and hinged on a single allegiance byte at 0x514 to hit enemies without frying Donald and Goofy."
+visibility: "public" # public | unlisted | private
+pinned: true
+topics: ["python", "reverse engineering", "game hacking", "memory editing", "code injection", "pymem", "kingdom hearts"]
+date: "2026-07-17"
+evergreen: true
+hero:
+  image: "/images/writing/kh3-dmg-multiplier/heavy_damage.png"
+  alt: "Sora dealing 2+ health bars worth of damage in one attack to Data Xemnas."
+---
+
+Being able to [face-tank bosses in Kingdom Hearts 3](https://www.bphdev.com/writing/kh3-trainer-code-injection) is a great start, but in order to really practice these bosses efficiently I need to be able to advance phases faster. Doing that is going to take a damage multiplier cheat, which is my next target for the trainer. I had two main theories when considering my approach. The first: Sora has an attack stat that’s more than likely used for damage calculations, so wiring a multiplier here may work well. The second: previous work on my HP cheat gave me the read/write instruction for every NPC in the game. I could re-use my findings from the reverse engineering we did on HP and inject our multiplier there. 
+
+# Targetting Attack
+I genuinely assumed writing Sora’s attack stat would be the easiest approach, as the value is easily accessible in the menu, and easy to shift around. So finding a candidate address in Cheat Engine wasn’t a problem at all. The real problem was, this address’ value shifted to nonsense after closing the menu. It was being used by the game temporarily to only display the attack stat. While I was able to change it in the menu, which would visibly reflect my changes, the game wasn’t re-writing this attack value back to wherever damage calculations live when the menu closed. Put more simply, this wasn’t as simple of an approach as I originally expected.
+
+# Shifting to the HP Write
+So instead of spending more time with Sora’s attack stat I shifted to reusing the work we already had. To freeze Sora’s HP we’re already hijacking the HP write location in-game memory, we’re just gating it on Sora’s vtable. So, if we just inverse the gate and match everyone who isn’t Sora we have a means to apply our multiplier. There’s a catch with this problem though. This’ll apply to all our buddies: Donald, Goofy, and any guest characters from the current world. It’s not detrimental, but the cheat isn’t “make everything that isn’t Sora get one shot,” it’s a damage multiplier, which most people recognize as increasing outgoing damage to enemies. So, I needed to do a bit more revving to find a stable way to separate enemy NPCs from friendly NPCs. 
+
+# The Allegiance Gate
+Fortunately, games like Kingdom Hearts typically store this value somewhere in memory, in a boolean or similar. I already had a script, `identify.py,` which read and captured all health writes and values that occurred while it was running. This was previously used to identify which actors were which in a game scene, so it was natural to extend it to identify a stable value we could use to determine NPC allegiance. 
+
+The extension was simple: have the script output all actors with health values and vtables, and then feed the enemy and actor vtables back into the script. The script then ran a diff against each group, pruning anything that appeared on both an enemy and a friendly NPC, as well as all pointer, float, and handle values, because we ideally want a boolean. After a couple of runs I was able to identify `0x514`, which read `0` for allies and `0xFF` for enemies, which acts as a clean `isHostile` boolean for the multiplier. 
+
+| Actor | `0x514` | Multiplier applies? |
+|---|---|---|
+| Sora (player) | `0x00` | No |
+| Donald (ally) | `0x00` | No |
+| Goofy (ally) | `0x00` | No |
+| Shadow (enemy) | `0xFF` | Yes |
+> `0x514` acts as a stable gate to seperate enemies and allies. Friendlies read `0x00` while enemies read `0xFF`
+
+
+With a way to separate friendly NPCs from enemy NPCs, my next move was working on a test harness, `mult_test.py.` The test first outputs health, vtables, and allegiance status so I could confirm that allegiance flags lined up with the actors on screen. After confirming, the script then enables the multiplier. To make it as obvious as possible, I set the multiplier to x40, and as you’d expect, enemies get one shot. Not only that, but gating seems to work. Donald and Goofy are immune to the multiplier. This was clear not because they survived (they almost never do on Critical), but because a small Shadow’s swipe attack’s damage remained small even with the multiplier enabled. Just to be certain guest characters didn’t break any of my assumptions, I stopped by Olympus and Toy Box to see how Hercules, Woody, and Buzz handled the multiplier, and they’re all immune to it as well. 
+
+---
+<video autoPlay loop muted playsInline>
+  <source src="/videos/writing/kh3-dmg-multiplier/one_combo_xemnas.mp4" type="video/mp4" />
+</video>
+---
+
+# The Catch
+And with that I have a working damage multiplier cheat. I’m able to one-shot small enemies and clear rooms in an instant, and I’m able to whittle boss health down lighting fast so I can practice different phases without wasting time, but there’s a major flaw with the approach I landed on. Both cheats use the same instruction, and both cheats inject their code at the same location. I accidentally made two cheats that stomp on each-others toes. Whichever one gets loaded first is the one that works, and the second politely says “hey boss, there’s something I don’t expect at our injection site.” The two cheats work independently, but the value is really when they’re both enabled at once (so I can just turn my brain off and hit a boss until it reaches the phase I want). Which really means these two cheats both still have some work that needs to be done, and I’ll have to spend some more time in the lab.
+
+![A diagram representing the collision caused by the HP freeze cheat and the damage multiplier cheat targetting the site.](/images/writing/kh3-dmg-multiplier/damage_multiplier_hp_hook_collision.png)
